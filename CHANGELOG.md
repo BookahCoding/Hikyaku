@@ -5,6 +5,17 @@ are `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+## 0.5.1 — first fixes from daily use
+
+Plain-text release notes: [docs/release-notes/v0.5.1.txt](docs/release-notes/v0.5.1.txt).
+
+- Read aloud made no sound on a real PC: playback now goes through Windows' AudioGraph from memory (no temporary audio
+  file), plays MP3, WAV, OGG/Opus, FLAC and AAC, and says why when a clip cannot be played.
+- Paste a picture (screenshot or copied image) or copied files into the chat box with Ctrl+V, or drop files on the chat:
+  they become attachments, as with the + button. Copied text still pastes as text.
+- Settings: the dangerous-command approval mode (Manual / Smart / Off) loads as Settings opens, for the profile in use;
+  before, it stayed greyed out until another profile was picked and back.
+
 ## 0.5.0 — first public test release
 
 First public release of the Windows client for a Hermes Agent gateway, numbered 0.5 because it is still being tested

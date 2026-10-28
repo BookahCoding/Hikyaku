@@ -132,6 +132,7 @@ public partial class MainWindow : Window
             try { _settings.Save(_settingsPath); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { /* keep the in-memory choice */ }
         };
         Loaded += (_, _) => HookMessageScroller();
+        HookAttachmentPasteAndDrop();
         _vm.EarlierLoaded += ScrollMessageIntoView;   // keep the reader on the message they were at
         _vm.AttachFolderGrants(_folderGrants);
         _vm.AttachNetworkPublish(networkPublish, new SetupRequiredGitHubPullRequestApi());

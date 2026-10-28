@@ -284,7 +284,7 @@
         <Button Content="Open Settings" Click="Settings_Click" HorizontalAlignment="Left" Style="{StaticResource AccentButton}"/>
       </StackPanel>
 
-      <Grid Grid.Row="1" Visibility="{Binding ChatsVisibility}">
+      <Grid x:Name="ChatArea" Grid.Row="1" Visibility="{Binding ChatsVisibility}">
         <Grid.RowDefinitions>
           <RowDefinition Height="*"/>
           <RowDefinition Height="Auto"/>
