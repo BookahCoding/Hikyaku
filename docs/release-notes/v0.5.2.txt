@@ -1,0 +1,8 @@
+Hikyaku 0.5.2 - Settings redesigned, two fixes
+
+- Fixed: after saving Settings (for example switching from Simple to Advanced view) you could not send messages or start a new chat until you restarted Hikyaku.
+- Fixed: after a restart or an update you sometimes had to sign in with the browser again.
+
+- Settings now look like Claude Desktop's: the sections are listed on the left (General, Appearance, Account, and in Advanced view also Profiles, Safety, Connection and Updates), with one tidy page each, written in plain words. Save and Cancel are always at the bottom.
+- Pick a theme from a gallery that shows each theme's light and dark colours side by side.
+- The "Update to ..." button opens Settings straight on the Updates page.

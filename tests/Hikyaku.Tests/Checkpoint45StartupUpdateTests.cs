@@ -5,7 +5,7 @@ namespace Hikyaku.Tests;
 
 /// <summary>
 /// Stage 45 — the start-up update check: only a newer release is reported, and a failure says nothing at all.
-/// The version scheme starts at 0.5.0, so a 0.x version must parse and compare like any other.
+/// The version scheme starts at 0.5.0, so a 0.x version must parse and compare like any other. Also 0.5.1's read-aloud formats.
 /// </summary>
 public class Checkpoint45StartupUpdateTests
 {
@@ -22,6 +22,16 @@ public class Checkpoint45StartupUpdateTests
         Assert.Null(await StartupUpdateCheck.FindNewerAsync(_ => Task.FromResult<UpdateCheckResult>(new UpdateCheckFailed(UpdateFailure.Failed, "404")), default));
         Assert.Null(await StartupUpdateCheck.FindNewerAsync(_ => throw new HttpRequestException("offline"), default));
         Assert.Null(await StartupUpdateCheck.FindNewerAsync(ct => Task.FromCanceled<UpdateCheckResult>(new CancellationToken(true)), default));
+    }
+
+    [Fact]
+    public void Every_format_the_gateway_voice_can_return_is_playable()
+    {
+        // Live finding (0.5.0): read aloud was silent on the maintainer's PC; the gateway can answer in any of these.
+        foreach (var mime in new[] { "audio/mpeg", "audio/wav", "audio/ogg", "audio/flac", "audio/aac", "audio/mp4", "Audio/OGG " })
+            Assert.True(SpeechPlaybackPolicy.IsSupportedMime(mime), mime);
+        Assert.False(SpeechPlaybackPolicy.IsSupportedMime("audio/webm"));
+        Assert.False(SpeechPlaybackPolicy.IsSupportedMime("text/html"));
     }
 
     [Fact]

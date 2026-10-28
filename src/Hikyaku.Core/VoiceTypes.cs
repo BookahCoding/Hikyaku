@@ -67,17 +67,17 @@ public sealed record VoiceCaptureLimits(int MaxDurationMs, int MaxBytes, int Sam
 public static class SpeechPlaybackPolicy
 {
     public const bool AllowsShellExecution = false;
-    /// <summary>
-    /// MPEG may require an ephemeral temp file for MediaPlayer; callers must delete on stop/cancel
-    /// and must not silently retain private audio. WAV prefers in-memory streams.
-    /// </summary>
+    /// <summary>Spoken audio is played from memory and never written to disk.</summary>
     public const bool AllowsSilentPrivatePersistence = false;
 
     public static bool IsSupportedMime(string? mime)
     {
         if (string.IsNullOrWhiteSpace(mime)) return false;
         var m = mime.Trim().ToLowerInvariant();
-        return m is "audio/wav" or "audio/wave" or "audio/x-wav" or "audio/mpeg" or "audio/mp3";
+        // What the gateway's /api/audio/speak can return (hermes-agent web_routers/audio.py _SPEAK_MIME_BY_EXT) and Windows'
+        // AudioGraph plays: MP3, WAV, OGG/Opus, FLAC; AAC as well. WebM is not offered: untested.
+        return m is "audio/wav" or "audio/wave" or "audio/x-wav" or "audio/mpeg" or "audio/mp3" or "audio/ogg" or "audio/opus"
+            or "audio/flac" or "audio/x-flac" or "audio/aac" or "audio/mp4" or "audio/m4a" or "audio/x-m4a";
     }
 
     public static bool AllowsRemoteUrl(string? url) => false;

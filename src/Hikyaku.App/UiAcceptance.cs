@@ -139,6 +139,8 @@ public static class UiAcceptance
             Directory.CreateDirectory(settingsDir);
             var knownBefore = settings.KnownProfileIds;
             settings.KnownProfileIds = ["default", "alpha-bot", "beta-bot"];                 // synthetic ids
+            var advancedBefore = settings.IsAdvanced;
+            settings.SetAdvanced(true);                                                       // Cloudflare Access is an Advanced page
             var dlg = new SettingsWindow(settings, Path.Combine(settingsDir, "settings.json"), selection,
                 new DpapiSecretStore(Path.Combine(settingsDir, "secrets")));
             // Live finding: every profile was listed twice in the approvals profile list.
@@ -149,12 +151,13 @@ public static class UiAcceptance
             exercised.Add("settings-profiles-listed-once");
             dlg.Left = -10000; dlg.Top = -10000; dlg.ShowInTaskbar = false;   // off-screen: captured, never shown to the user
             dlg.Show();
-            dlg.AccessClientId.BringIntoView();
+            dlg.ShowPage("connection");
             dlg.UpdateLayout();
             await dlg.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
             dlg.UpdateLayout();
             Capture(dlg, Path.Combine(outDir, "09-settings-access.png"));
             dlg.Close();
+            settings.SetAdvanced(advancedBefore);
             exercised.Add("settings-access-section-screenshot");
             // The same window for someone in Simple view: only sign-in, appearance and the view choice.
             settings.SetAdvanced(false);
@@ -166,6 +169,10 @@ public static class UiAcceptance
             await simpleDlg.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
             simpleDlg.UpdateLayout();
             Capture(simpleDlg, Path.Combine(outDir, "09b-settings-simple.png"));
+            simpleDlg.ShowPage("appearance");
+            simpleDlg.UpdateLayout();
+            await simpleDlg.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
+            Capture(simpleDlg, Path.Combine(outDir, "09c-settings-appearance.png"));
             AssertSettingsMatchPlan(simpleDlg, advanced: false, "simple, set up");
             simpleDlg.Close();
             settings.SetAdvanced(true);
@@ -178,6 +185,25 @@ public static class UiAcceptance
                 advDlg.Close();
             }
             exercised.Add("settings-simple-screenshot");
+            // Live finding (0.5.0): with a working session, Settings opened with the approval modes greyed out and "Sign in to
+            // load", until the profile was switched away and back. They must load as the window opens.
+            {
+                using var fixtureAuth = new DashboardAuth(new Uri("https://gateway.example.invalid/"), new FixtureConfigHandler());
+                var knownBeforeAppr = settings.KnownProfileIds;
+                settings.KnownProfileIds = ["default", "alpha-bot"];                           // synthetic ids
+                var apprDlg = new SettingsWindow(settings, Path.Combine(settingsDir, "settings-appr.json"), selection,
+                    new DpapiSecretStore(Path.Combine(settingsDir, "secrets")), () => fixtureAuth);
+                apprDlg.Left = -10000; apprDlg.Top = -10000; apprDlg.ShowInTaskbar = false;
+                apprDlg.Show();
+                settings.KnownProfileIds = knownBeforeAppr;
+                var smart = () => apprDlg.ApprovalModes.Children.OfType<System.Windows.Controls.RadioButton>().FirstOrDefault(r => r.Tag is ApprovalMode { Wire: "smart" });
+                for (var i = 0; i < 50 && smart() is not { IsEnabled: true }; i++) await Task.Delay(40);
+                var ok = smart() is { IsEnabled: true };
+                var why = $"section={apprDlg.ApprovalsSection.Visibility} profile={apprDlg.ApprovalProfile.SelectedItem} status={apprDlg.ApprovalStatus.Text}";
+                apprDlg.Close();
+                if (!ok) throw new InvalidOperationException("HIKYAKU_UI_FAIL approval modes did not load when Settings opened with a session: " + why);
+                exercised.Add("settings-approvals-load-on-open");
+            }
         }
         // Command palette (Ctrl+K): navigation and reversible view actions only.
         vm.OpenPaletteCommand!.Execute(null);
@@ -316,6 +342,23 @@ public static class UiAcceptance
             foreach (var m in new[] { asked, reply }) { chat.History.Remove(m); vm.Messages.Remove(m); }
             exercised.Add("tool-steps-screenshot");
             exercised.Add("reasoning-and-plan-screenshot");
+        }
+        // 0.6.0 voice chat: the headset button opens the bar listening (a silent fixture: no device is opened in a test run).
+        {
+            if (vm.VoiceChatButtonVisibility != Visibility.Visible)
+                throw new InvalidOperationException("HIKYAKU_UI_FAIL the voice chat button is not offered");
+            vm.ToggleVoiceChatCommand.Execute(null);
+            for (var i = 0; i < 50 && vm.VoiceChatStatus != "Listening…"; i++)
+                await window.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
+            window.UpdateLayout();
+            Capture(window, Path.Combine(outDir, "04m-voice-chat.png"));
+            if (vm.VoiceChatStatus != "Listening…" || vm.VoiceChatBarVisibility != Visibility.Visible)
+                throw new InvalidOperationException("HIKYAKU_UI_FAIL voice chat did not start listening: " + vm.VoiceChatStatus);
+            vm.EndVoiceChat(null);
+            for (var i = 0; i < 50 && vm.VoiceChatActive; i++)
+                await window.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
+            if (vm.VoiceChatActive) throw new InvalidOperationException("HIKYAKU_UI_FAIL voice chat did not end");
+            exercised.Add("voice-chat-bar-screenshot");
         }
         // Running filter with synthetic listed chats and no gateway: every chat stays visible and the note says why.
         foreach (var n in new[] { "Quarterly report draft", "Refactor the parser", "Plan the offsite" })
@@ -762,6 +805,12 @@ public static class UiAcceptance
         Check("profiles", w.ProfilesSection, plan.Profiles);
         Check("approvals", w.ApprovalsSection, plan.Approvals);
         Check("notifications", w.NotificationsSection, plan.Notifications);
+        // 0.5.2: each section is also offered in the list on the left exactly when it has something to show.
+        Check("profiles in the list", w.NavProfiles, plan.Profiles);
+        Check("safety in the list", w.NavSafety, plan.Approvals);
+        Check("connection in the list", w.NavConnection, plan.Access);
+        Check("updates in the list", w.NavUpdates, plan.Updates);
+        Check("account in the list", w.NavAccount, true);
         Check("simple choice", w.ModeSimple, true);
         Check("advanced choice", w.ModeAdvanced, true);
     }
@@ -823,6 +872,19 @@ public static class UiAcceptance
 }
 
 /// <summary>Synthetic hosted-rooms answers for the UI acceptance run only: no gateway is involved.</summary>
+/// <summary>A gateway's config routes, synthetic: approvals can be Manual, Smart or Off and are Manual now.</summary>
+internal sealed class FixtureConfigHandler : System.Net.Http.HttpMessageHandler
+{
+    protected override Task<System.Net.Http.HttpResponseMessage> SendAsync(System.Net.Http.HttpRequestMessage request, CancellationToken ct)
+    {
+        var json = request.RequestUri!.AbsolutePath.EndsWith("/api/config/schema", StringComparison.Ordinal)
+            ? """{"fields":{"approvals.mode":{"type":"select","category":"approvals","options":["manual","smart","off"]}}}"""
+            : """{"approvals":{"mode":"manual"}}""";
+        return Task.FromResult(new System.Net.Http.HttpResponseMessage(System.Net.HttpStatusCode.OK)
+        { Content = new System.Net.Http.StringContent(json, Encoding.UTF8, "application/json") });
+    }
+}
+
 internal sealed class FixtureRoomsPeer : IJsonRpcPeer
 {
     public Task<System.Text.Json.Nodes.JsonNode?> RequestAsync(string method, System.Text.Json.Nodes.JsonObject? parameters = null,
