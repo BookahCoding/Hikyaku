@@ -137,16 +137,15 @@ public class Checkpoint16LiveSessionsTests
         h.Throw = new HttpRequestException("blip");
         h.FireTimer();
         Assert.True(await h.WaitForAsksAsync(2));
-        await Task.Delay(30);
+        // Wait for the poller to take the answer in rather than a fixed 30 ms (it lost that race on a busy machine).
+        Assert.True(SpinWait.SpinUntil(() => p.Current.Error is not null, 5000));
         Assert.Equal(LiveStatus.Working, p.Current.Rows["a"].Status);   // last answer stands
-        Assert.NotNull(p.Current.Error);
         Assert.False(p.Current.Unsupported);
 
         h.Throw = null;
         h.FireTimer();
         Assert.True(await h.WaitForAsksAsync(3));
-        await Task.Delay(30);
-        Assert.Null(p.Current.Error);
+        Assert.True(SpinWait.SpinUntil(() => p.Current.Error is null, 5000));
     }
 
     [Fact]

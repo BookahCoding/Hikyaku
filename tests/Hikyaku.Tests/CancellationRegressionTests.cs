@@ -110,8 +110,9 @@ public class CancellationRegressionTests
                 }
             });
 
+            // A generous bound: on a busy CI runner 5 s was sometimes not enough to wind the stream down (a timeout, not a failure).
             await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
-                await stream.WaitAsync(TimeSpan.FromSeconds(5)));
+                await stream.WaitAsync(TimeSpan.FromSeconds(20)));
             await Task.Delay(150);
             Assert.True(sawBound);
             Assert.Equal(1, sock.CountCalls("prompt.submit"));
