@@ -99,7 +99,7 @@ public class Checkpoint43InboxFoldersWpfTests
             Assert.Null(vm.SelectedConversation?.StoredSessionId);
             lock (seen) Assert.DoesNotContain(seen, q => q.Contains("/api/sessions/"));   // the 404 the live test hit
 
-            vm.JobResults.Single(r => r.Title == "Morning summary").OpenCommand.Execute(null);
+            vm.JobResults.Single(r => r.Title == "Morning summary").AskCommand.Execute(null);   // 0.7.0: "Ask about this" opens the chat
             SpinWait.SpinUntil(() => vm.SelectedConversation?.StoredSessionId == "cron_agent_20261027_090000", 2000);
             Assert.Equal("cron_agent_20261027_090000", vm.SelectedConversation!.StoredSessionId);   // an agent run still opens
         });

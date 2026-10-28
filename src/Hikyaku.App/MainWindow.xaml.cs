@@ -39,6 +39,7 @@ public partial class MainWindow : Window
     private bool _roomScrollHooked;
     private InboxService? _inbox;   // the herald-push Inbox client: kept for a future PC registration, not created (Stage 42)
     private readonly JobInboxPrefs _jobInboxPrefs = new(new FilePreferenceStore(Path.Combine(App.DataDir, "inbox-hidden-jobs.json")));
+    private readonly InboxReadStore _inboxReads = new(new FilePreferenceStore(Path.Combine(App.DataDir, "inbox-read.json")));
     private CancellationTokenSource? _jobInboxPoll;
     private NeedsYouService? _needsYou;
     private SessionCatalog? _sessions;
@@ -189,6 +190,12 @@ public partial class MainWindow : Window
         Activated += (_, _) => _appActive = true;
         Deactivated += (_, _) => _appActive = false;
         _vm.AttachJobInbox(_jobInboxPrefs);
+        // 0.7.0: what each run found (the run chat's last answer, or the hikyaku-cron plugin's output) and the read marks.
+        _vm.AttachJobRunDetails(new JobRunDetails(
+            async (id, profile, limit, ct) => _hermes?.Auth is { } auth
+                ? (await new SessionsApi(auth).MessagesAsync(id, profile, limit, 0, ct).ConfigureAwait(false)).Messages
+                : throw new InvalidOperationException("Not connected to the gateway."),
+            () => _hermes?.Client), _inboxReads);
         _vm.ModelMenuRequested += () => ModelMenu_Click(ModelMenuButton, new RoutedEventArgs());
         _vm.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(MainViewModel.Nav)) FadeInPage(); };
         _vm.ActiveProfileChosen += id =>

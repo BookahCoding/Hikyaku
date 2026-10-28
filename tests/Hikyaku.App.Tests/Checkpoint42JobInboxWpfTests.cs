@@ -127,7 +127,7 @@ public class Checkpoint42JobInboxWpfTests
             vm.JobInboxAllProfiles = true;
             vm.RefreshJobInboxAsync().GetAwaiter().GetResult();
             var work = vm.JobResults.Single(r => r.Title == "Work digest");
-            work.OpenCommand.Execute(null);
+            work.AskCommand.Execute(null);                                   // 0.7.0: a click expands; "Ask about this" opens the chat
             SpinWait.SpinUntil(() => vm.SelectedConversation?.StoredSessionId == "run-w1", 2000);
             Assert.Equal(MainNav.Chats, vm.Nav);
             Assert.Equal("run-w1", vm.SelectedConversation!.StoredSessionId);

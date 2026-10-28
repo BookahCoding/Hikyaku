@@ -142,7 +142,7 @@ public sealed partial class MainViewModel
             nameof(ModelChipVisibility), nameof(BranchVisibility), nameof(ReasoningChipVisibility), nameof(FastChipVisibility),
             nameof(SessionFiltersVisibility), nameof(SettingsConnectionVisibility), nameof(VoiceStatusVisibility),
             nameof(InboxSetupVisibility), nameof(InboxSimpleIntroVisibility), nameof(ConfigEditorVisibility), nameof(McpEditVisibility),
-            nameof(ReasoningDetailsVisibility), nameof(PlanDetailsVisibility), nameof(NoticeDetailsVisibility), nameof(UpdateNoticeVisibility), nameof(VoiceChatButtonVisibility), nameof(AdvancedActivityVisibility), nameof(SimpleActivityVisibility)
+            nameof(ReasoningDetailsVisibility), nameof(PlanDetailsVisibility), nameof(NoticeDetailsVisibility), nameof(UpdateNoticeVisibility), nameof(VoiceChatButtonVisibility), nameof(JobInboxPluginHintVisibility), nameof(AdvancedActivityVisibility), nameof(SimpleActivityVisibility)
         }) Raise(n);
         RaiseRiskNotice();
         RaiseStatus();

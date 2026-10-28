@@ -380,9 +380,17 @@ public static class UiAcceptance
             var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             var digest = Job("""{"id":"a","name":"Morning summary","prompt":"p","state":"scheduled","profile":"default","last_status":"ok"}""");
             var backup = Job("""{"id":"b","name":"Backup check","prompt":"p","state":"scheduled","profile":"default","last_status":"error","last_error":"synthetic"}""");
-            vm.JobResults.Add(new JobResultVM(new JobResult(digest, new SessionSummary("r1", Preview: "Synthetic: three things need you today.", StartedAt: now - 600), false), "default", false, none, none));
-            vm.JobResults.Add(new JobResultVM(new JobResult(backup, new SessionSummary("r2", Preview: "Synthetic: the backup target was not reachable.", StartedAt: now - 7200), true), "default", false, none, none));
-            vm.JobResults.Add(new JobResultVM(new JobResult(digest, new SessionSummary("r3", Preview: "Synthetic: a quiet day.", StartedAt: now - 90000), false), "default", false, none, none));
+            // 0.7.0: each row shows what the run found (an agent's answer, a script's output), unread marks and one result open in place.
+            var fresh = new JobResultVM(new JobResult(digest, new SessionSummary("r1", Preview: "/morning-summary", StartedAt: now - 600), false), "default", false, none, none, none, unread: true);
+            fresh.SetDetail(new RunText(RunStatus.Ok, "Synthetic: three things need you today.\n\n- Reply to the bank\n- Renew the domain\n- Call the plumber", null));
+            var failed = new JobResultVM(new JobResult(backup, new SessionSummary("cron_output:b:2026-10-28_06-00-00", Preview: "", Source: "cron_output", StartedAt: now - 7200), true), "default", false, none, none, none, unread: true);
+            failed.SetDetail(new RunText(RunStatus.Failed, "Synthetic: the backup target was not reachable.", "script failed"));
+            var open = new JobResultVM(new JobResult(digest, new SessionSummary("r3", Preview: "/morning-summary", StartedAt: now - 90000), false), "default", false, none, none, none);
+            open.SetDetail(new RunText(RunStatus.Ok, "Synthetic: a quiet day. **Nothing** needs you.", null));
+            open.IsExpanded = true;
+            foreach (var row in new[] { fresh, failed, open }) vm.JobResults.Add(row);
+            if (fresh.Excerpt.Contains("/morning-summary") || failed.StatusLabel != "Failed" || open.FullTextVisibility != Visibility.Visible)
+                throw new InvalidOperationException("HIKYAKU_UI_FAIL inbox rows: " + fresh.Excerpt + " / " + failed.StatusLabel);
         }
         window.UpdateLayout();
         Capture(window, Path.Combine(outDir, "05-inbox.png"));
