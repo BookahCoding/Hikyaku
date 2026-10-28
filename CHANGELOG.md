@@ -5,6 +5,8 @@ are `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- Unsent drafts are no longer lost when two saves overlap (typing quickly, or switching chats while a save is still writing).
+
 ## 0.5.0 — first public test release
 
 First public release of the Windows client for a Hermes Agent gateway, numbered 0.5 because it is still being tested
