@@ -5,6 +5,20 @@ are `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+## 0.6.0 — voice chat
+
+Plain-text release notes: [docs/release-notes/v0.6.0.txt](docs/release-notes/v0.6.0.txt).
+
+- Voice chat, like Hermes Desktop's: the headset button in the chat box starts a hands-free conversation with the open chat's
+  agent, in both views. It listens until you pause (about 1.25 s, or the profile's `voice.silence_duration`), sends what
+  you said as your message, speaks the reply while it is still being written (the gateway's speak-stream, or the whole
+  reply at once on gateways without it), then listens again. Talk over it to cut in. Say "stop" (or "goodbye", "never
+  mind", or the profile's `voice.stop_phrases`), press Stop or Esc, or switch chats to end it; three silent listens end
+  it too. When Hermes needs an approval or an answer it stops and asks you to check the screen: nothing is approved by
+  voice. Code and attached files are never read out. A microphone Windows keeps from desktop apps is reported with where
+  to switch it on.
+- Design and plan: docs/superpowers/specs/2026-10-28-voice-chat-design.md, docs/superpowers/plans/2026-10-28-voice-chat.md.
+
 ## 0.5.2 — Settings redesigned, two fixes
 
 Plain-text release notes: [docs/release-notes/v0.5.2.txt](docs/release-notes/v0.5.2.txt).
