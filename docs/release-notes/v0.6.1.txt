@@ -1,0 +1,3 @@
+Hikyaku 0.6.1 - updates in Simple view
+
+- Updates are now offered in Simple view too: the "Update to ..." button at the top of the window and Settings, Updates. Someone who uses Simple view can keep Hikyaku up to date without switching to Advanced.

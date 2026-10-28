@@ -6,6 +6,56 @@ are `vMAJOR.MINOR.PATCH`.
 ## Unreleased
 
 - The × on a file you are about to send is named for that file (for example "Remove notes.txt") for screen readers, with a tooltip that the file has not been sent.
+- Recent chats no longer keep a blank line under every row. "Pinned" and the preview only take space when there is something to show.
+- While a reply is thinking, the reasoning text updates in small batches instead of on every token, so a long thought stays responsive. The full text is still shown.
+- Each message has a Copy button (the text as written, including markdown). Nothing is sent.
+- Unsent drafts are no longer lost when two saves overlap (typing quickly, or switching chats while a save is still writing).
+
+## 0.6.1 — updates in Simple view
+
+- Settings → Updates and the "Update to x.y.z" button are offered in Simple view too (the maintainer's choice), so
+  someone using Simple view can keep Hikyaku up to date.
+
+## 0.6.0 — voice chat
+
+Plain-text release notes: [docs/release-notes/v0.6.0.txt](docs/release-notes/v0.6.0.txt).
+
+- Voice chat, like Hermes Desktop's: the headset button in the chat box starts a hands-free conversation with the open chat's
+  agent, in both views. It listens until you pause (about 1.25 s, or the profile's `voice.silence_duration`), sends what
+  you said as your message, speaks the reply while it is still being written (the gateway's speak-stream, or the whole
+  reply at once on gateways without it), then listens again. Talk over it to cut in. Say "stop" (or "goodbye", "never
+  mind", or the profile's `voice.stop_phrases`), press Stop or Esc, or switch chats to end it; three silent listens end
+  it too. When Hermes needs an approval or an answer it stops and asks you to check the screen: nothing is approved by
+  voice. Code and attached files are never read out. A microphone Windows keeps from desktop apps is reported with where
+  to switch it on.
+- Design and plan: docs/superpowers/specs/2026-10-28-voice-chat-design.md, docs/superpowers/plans/2026-10-28-voice-chat.md.
+
+## 0.5.2 — Settings redesigned, two fixes
+
+Plain-text release notes: [docs/release-notes/v0.5.2.txt](docs/release-notes/v0.5.2.txt).
+
+- Fixed: after saving Settings (for example switching Simple to Advanced) the open chat was no longer selected, so Send,
+  + and the microphone were greyed out and New chat did not help. Refreshing the chat list no longer drops the selection.
+- Fixed: after a restart or an update the browser sign-in could be lost and had to be done again. The app's connections
+  renewed the shared sign-in at the same moment with the same one-use refresh token; renewal is now one at a time, and a
+  refused renewal no longer forgets a sign-in that another renewal had just saved.
+
+- Settings laid out like Claude Desktop's: sections on the left (General, Appearance, Account, and in Advanced Profiles,
+  Safety, Connection, Updates), one page each, in plain words; Save and Cancel always in reach. Simple view lists only the
+  sections it shows.
+- Themes are picked from a gallery that shows each theme's light and dark colours side by side.
+- The update button opens Settings straight on Updates.
+
+## 0.5.1 — first fixes from daily use
+
+Plain-text release notes: [docs/release-notes/v0.5.1.txt](docs/release-notes/v0.5.1.txt).
+
+- Read aloud made no sound on a real PC: playback now goes through Windows' AudioGraph from memory (no temporary audio
+  file), plays MP3, WAV, OGG/Opus, FLAC and AAC, and says why when a clip cannot be played.
+- Paste a picture (screenshot or copied image) or copied files into the chat box with Ctrl+V, or drop files on the chat:
+  they become attachments, as with the + button. Copied text still pastes as text.
+- Settings: the dangerous-command approval mode (Manual / Smart / Off) loads as Settings opens, for the profile in use;
+  before, it stayed greyed out until another profile was picked and back.
 
 ## 0.5.0 — first public test release
 

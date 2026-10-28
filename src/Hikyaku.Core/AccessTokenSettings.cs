@@ -27,7 +27,7 @@ public sealed class AccessTokenSettings(AccessTokenStore store)
     }
 
     public string Status(Uri? gateway) =>
-        gateway is null ? "Enter the dashboard URL above first."
+        gateway is null ? "Enter the gateway address under Account first."
         : store.Has(gateway.Host) ? $"A service token is saved for {gateway.Host}. The secret is stored encrypted for your Windows user and is not shown again."
         : $"No service token is saved for {gateway.Host}.";
 
