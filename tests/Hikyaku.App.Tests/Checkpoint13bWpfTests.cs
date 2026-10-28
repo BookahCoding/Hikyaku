@@ -240,10 +240,17 @@ public class Checkpoint13bWpfTests
         {
             MathTypesetter.ResetTestHooks();
             MathTypesetter.ClearCache();
-            var a = MathTypesetter.Render(@"\frac{a}{b}", 18, true, Colors.Black);
+            // The first draw on a cold runner can miss the 250 ms budget. A timed-out draw is not cached.
+            MathRenderResult a = default;
+            for (var i = 0; i < 8; i++)
+            {
+                a = MathTypesetter.Render(@"\frac{a}{b}", 18, true, Colors.Black);
+                if (a.Success && MathTypesetter.CacheCount > 0) break;
+            }
             Assert.True(a.Success, a.FallbackReason);
+            Assert.True(MathTypesetter.CacheCount > 0);
             var b = MathTypesetter.Render(@"\frac{a}{b}", 18, true, Colors.Black);
-            Assert.True(b.Success);
+            Assert.True(b.Success, b.FallbackReason);
             Assert.True(ReferenceEquals(a.Bitmap, b.Bitmap), "cache must return same bitmap instance");
             Assert.True(HasNonTransparentPixels(b.Bitmap!));
         });

@@ -94,6 +94,18 @@ public class Checkpoint16LiveSessionsTests
             return Volatile.Read(ref Asks) >= n;
         }
 
+        /// <summary>The poller has registered its delay. Firing before that is a no-op and the next ask never starts.</summary>
+        public async Task<bool> WaitUntilParkedAsync()
+        {
+            for (var i = 0; i < 400; i++)
+            {
+                lock (Waits)
+                    if (Waits.Count > 0) return true;
+                await Task.Delay(5);
+            }
+            return false;
+        }
+
         public void FireTimer() { lock (Waits) { foreach (var w in Waits.ToArray()) w.TrySetResult(); Waits.Clear(); } }
     }
 
@@ -107,20 +119,20 @@ public class Checkpoint16LiveSessionsTests
         Assert.False(p.Current.HasAnswer);
         p.Start();
         Assert.True(await h.WaitForAsksAsync(1));
-        await Task.Delay(30);
+        Assert.True(await h.WaitUntilParkedAsync());
         Assert.True(p.Current.HasAnswer);
         Assert.Equal(LiveStatus.Working, p.Current.Rows["a"].Status);
         Assert.Equal(1, changed);
 
         h.FireTimer();                                       // same answer again: no UI churn
         Assert.True(await h.WaitForAsksAsync(2));
-        await Task.Delay(30);
+        Assert.True(await h.WaitUntilParkedAsync());
         Assert.Equal(1, changed);
 
         h.Answer = _ => Rows(("a", "rt-a", "idle", "A"));
         h.FireTimer();
         Assert.True(await h.WaitForAsksAsync(3));
-        await Task.Delay(30);
+        Assert.True(await h.WaitUntilParkedAsync());
         Assert.Equal(2, changed);
         Assert.Equal(LiveStatus.Idle, p.Current.Rows["a"].Status);
     }
@@ -132,20 +144,21 @@ public class Checkpoint16LiveSessionsTests
         using var p = h.Poller();
         p.Start();
         Assert.True(await h.WaitForAsksAsync(1));
-        await Task.Delay(30);
+        Assert.True(await h.WaitUntilParkedAsync());
 
         h.Throw = new HttpRequestException("blip");
         h.FireTimer();
         Assert.True(await h.WaitForAsksAsync(2));
-        // Wait for the poller to take the answer in rather than a fixed 30 ms (it lost that race on a busy machine).
-        Assert.True(SpinWait.SpinUntil(() => p.Current.Error is not null, 5000));
+        Assert.True(await h.WaitUntilParkedAsync());
+        Assert.NotNull(p.Current.Error);
         Assert.Equal(LiveStatus.Working, p.Current.Rows["a"].Status);   // last answer stands
         Assert.False(p.Current.Unsupported);
 
         h.Throw = null;
         h.FireTimer();
         Assert.True(await h.WaitForAsksAsync(3));
-        Assert.True(SpinWait.SpinUntil(() => p.Current.Error is null, 5000));
+        Assert.True(await h.WaitUntilParkedAsync());
+        Assert.Null(p.Current.Error);
     }
 
     [Fact]
