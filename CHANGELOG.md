@@ -5,6 +5,16 @@ are `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+## 0.5.2 — Settings redesigned
+
+Plain-text release notes: [docs/release-notes/v0.5.2.txt](docs/release-notes/v0.5.2.txt).
+
+- Settings laid out like Claude Desktop's: sections on the left (General, Appearance, Account, and in Advanced Profiles,
+  Safety, Connection, Updates), one page each, in plain words; Save and Cancel always in reach. Simple view lists only the
+  sections it shows.
+- Themes are picked from a gallery that shows each theme's light and dark colours side by side.
+- The update button opens Settings straight on Updates.
+
 ## 0.5.1 — first fixes from daily use
 
 Plain-text release notes: [docs/release-notes/v0.5.1.txt](docs/release-notes/v0.5.1.txt).

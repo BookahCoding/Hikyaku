@@ -139,6 +139,8 @@ public static class UiAcceptance
             Directory.CreateDirectory(settingsDir);
             var knownBefore = settings.KnownProfileIds;
             settings.KnownProfileIds = ["default", "alpha-bot", "beta-bot"];                 // synthetic ids
+            var advancedBefore = settings.IsAdvanced;
+            settings.SetAdvanced(true);                                                       // Cloudflare Access is an Advanced page
             var dlg = new SettingsWindow(settings, Path.Combine(settingsDir, "settings.json"), selection,
                 new DpapiSecretStore(Path.Combine(settingsDir, "secrets")));
             // Live finding: every profile was listed twice in the approvals profile list.
@@ -149,12 +151,13 @@ public static class UiAcceptance
             exercised.Add("settings-profiles-listed-once");
             dlg.Left = -10000; dlg.Top = -10000; dlg.ShowInTaskbar = false;   // off-screen: captured, never shown to the user
             dlg.Show();
-            dlg.AccessClientId.BringIntoView();
+            dlg.ShowPage("connection");
             dlg.UpdateLayout();
             await dlg.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
             dlg.UpdateLayout();
             Capture(dlg, Path.Combine(outDir, "09-settings-access.png"));
             dlg.Close();
+            settings.SetAdvanced(advancedBefore);
             exercised.Add("settings-access-section-screenshot");
             // The same window for someone in Simple view: only sign-in, appearance and the view choice.
             settings.SetAdvanced(false);
@@ -166,6 +169,10 @@ public static class UiAcceptance
             await simpleDlg.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
             simpleDlg.UpdateLayout();
             Capture(simpleDlg, Path.Combine(outDir, "09b-settings-simple.png"));
+            simpleDlg.ShowPage("appearance");
+            simpleDlg.UpdateLayout();
+            await simpleDlg.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
+            Capture(simpleDlg, Path.Combine(outDir, "09c-settings-appearance.png"));
             AssertSettingsMatchPlan(simpleDlg, advanced: false, "simple, set up");
             simpleDlg.Close();
             settings.SetAdvanced(true);
@@ -781,6 +788,12 @@ public static class UiAcceptance
         Check("profiles", w.ProfilesSection, plan.Profiles);
         Check("approvals", w.ApprovalsSection, plan.Approvals);
         Check("notifications", w.NotificationsSection, plan.Notifications);
+        // 0.5.2: each section is also offered in the list on the left exactly when it has something to show.
+        Check("profiles in the list", w.NavProfiles, plan.Profiles);
+        Check("safety in the list", w.NavSafety, plan.Approvals);
+        Check("connection in the list", w.NavConnection, plan.Access);
+        Check("updates in the list", w.NavUpdates, plan.Updates);
+        Check("account in the list", w.NavAccount, true);
         Check("simple choice", w.ModeSimple, true);
         Check("advanced choice", w.ModeAdvanced, true);
     }

@@ -1,0 +1,5 @@
+Hikyaku 0.5.2 - Settings redesigned
+
+- Settings now look like Claude Desktop's: the sections are listed on the left (General, Appearance, Account, and in Advanced view also Profiles, Safety, Connection and Updates), with one tidy page each, written in plain words. Save and Cancel are always at the bottom.
+- Pick a theme from a gallery that shows each theme's light and dark colours side by side.
+- The "Update to ..." button opens Settings straight on the Updates page.

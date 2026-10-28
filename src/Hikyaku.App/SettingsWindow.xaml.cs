@@ -52,7 +52,7 @@ public partial class SettingsWindow : Window
             if (ApprovalsSection.Visibility == Visibility.Visible) _ = LoadApprovalsForSelectedAsync();
             if (CheckUpdatesOnOpen && UpdatesSection.Visibility == Visibility.Visible)
             {
-                UpdatesSection.BringIntoView();
+                ShowPage("updates");
                 UpdateCheck_Click(this, new RoutedEventArgs());
             }
         };
@@ -68,12 +68,14 @@ public partial class SettingsWindow : Window
         TextLarger.IsChecked = scale == 115;
         TextLargest.IsChecked = scale == 130;
         ApplyModeSections(settings.IsAdvanced);
+        if (SetupNeeded) ShowPage("account");          // a new installation starts where the gateway is entered
         foreach (var id in settings.KnownProfileIds) AddRow(id);
 
         _suppressPreview = true;
-        ThemePicker.ItemsSource = ThemeCatalog.All.Select(t => t.DisplayName).ToList();
+        var swatches = ThemeCatalog.All.Select(t => new ThemeSwatch(t)).ToList();
+        ThemePicker.ItemsSource = swatches;
         var theme = ThemeCatalog.Get(settings.ThemeId);
-        ThemePicker.SelectedItem = theme.DisplayName;
+        ThemePicker.SelectedItem = swatches.FirstOrDefault(s => s.Id == theme.Id);
         switch (settings.AppearanceMode)
         {
             case AppearanceMode.Light: AppearLight.IsChecked = true; break;
@@ -487,8 +489,7 @@ public partial class SettingsWindow : Window
 
     private void PreviewTheme()
     {
-        var themeId = ThemeCatalog.All.FirstOrDefault(t => t.DisplayName == ThemePicker.SelectedItem as string)?.Id
-            ?? _settings.ThemeId;
+        var themeId = (ThemePicker.SelectedItem as ThemeSwatch)?.Id ?? _settings.ThemeId;
         var mode = AppearLight.IsChecked == true ? AppearanceMode.Light
             : AppearDark.IsChecked == true ? AppearanceMode.Dark
             : AppearanceMode.System;
@@ -503,10 +504,11 @@ public partial class SettingsWindow : Window
     private void UpdateMotionHint()
     {
         MotionHint.Text = ThemeService.ReduceMotion
-            ? "Reduced motion: panel changes are instant (Windows accessibility)."
+            ? "Animations are off, because Windows' animation effects are turned off."
             : ThemeService.HighContrast
-                ? "High contrast: borders strengthened."
-                : $"Motion: panel duration {ThemeService.PanelDuration.TotalMilliseconds:0} ms (respects OS reduced-motion).";
+                ? "Windows' high contrast is on, so borders are stronger."
+                : "";
+        MotionHint.Visibility = MotionHint.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void PersistFields(bool keepPasswordIfBlank)
@@ -563,7 +565,7 @@ public partial class SettingsWindow : Window
         CredentialsSection.Visibility = V(plan.Credentials);
         SignInDiscover.Visibility = V(plan.SignInButtons);
         SignInDiscover.Content = plan.FullSignInLabel ? "Sign in and discover profiles" : "Sign in";
-        AccountHeading.Visibility = V(plan.AccountHeading);
+        ApplySectionList(plan);
         AccessSection.Visibility = V(plan.Access);
         UpdatesSection.Visibility = V(plan.Updates);
         ProfilesSection.Visibility = V(plan.Profiles);
@@ -581,8 +583,7 @@ public partial class SettingsWindow : Window
         _settings.SetAdvanced(ModeAdvanced.IsChecked == true);
         _settings.TextScalePercent = TextLargest.IsChecked == true ? 130 : TextLarger.IsChecked == true ? 115 : 100;
         ApplyToastRegistration(_settings.NotificationsEnabled);
-        var themeId = ThemeCatalog.All.FirstOrDefault(t => t.DisplayName == ThemePicker.SelectedItem as string)?.Id
-            ?? "washi-ink";
+        var themeId = (ThemePicker.SelectedItem as ThemeSwatch)?.Id ?? "washi-ink";
         _settings.ThemeId = themeId;
         var mode = AppearLight.IsChecked == true ? AppearanceMode.Light
             : AppearDark.IsChecked == true ? AppearanceMode.Dark
