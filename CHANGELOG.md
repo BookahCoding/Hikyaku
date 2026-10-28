@@ -5,6 +5,8 @@ are `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- Unsent drafts are no longer lost when two saves overlap (typing quickly, or switching chats while a save is still writing).
+
 ## 0.6.1 — updates in Simple view
 
 - Settings → Updates and the "Update to x.y.z" button are offered in Simple view too (the maintainer's choice), so
