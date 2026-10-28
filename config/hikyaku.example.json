@@ -1,5 +1,0 @@
-{
-  "gateways": [
-    { "id": "example-gateway", "displayName": "Example gateway", "baseUrl": "https://gateway.example.invalid" }
-  ]
-}

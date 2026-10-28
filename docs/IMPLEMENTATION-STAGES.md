@@ -25,7 +25,7 @@ License/credits file edits (only in an approved publication stage)
 
 | Acceptance | Evidence |
 |---|---|
-| Parity inventory, UX plan, permissions, stages, synthetic prototype committed | docs + `design/` |
+| Parity inventory, UX plan, permissions, stages, synthetic prototype committed | docs (the HTML prototype was removed once the app replaced it) |
 | The maintainer's review of proposed choices in UX-PLAN / PERMISSIONS | human sign-off |
 | No app code / no push / protecteds untouched | git + hashes |
 

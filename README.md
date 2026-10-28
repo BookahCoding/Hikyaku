@@ -34,7 +34,7 @@ Hikyaku has two views, chosen in **Settings → View**:
 | | Simple | Advanced |
 |---|---|---|
 | For | everyday chatting, including people new to computers | managing Hermes |
-| Shows | Chats, Inbox, Needs you, sign in, appearance | everything |
+| Shows | Chats, voice chat, Inbox, Needs you, sign in, appearance, updates | everything |
 | Gateway changes | answering approvals, chat housekeeping (rename, pin, delete) | all settings and admin pages |
 
 A new installation starts in Simple. Simple is a **view, not a lock**: anyone at the PC can switch with one click. For real
@@ -101,7 +101,7 @@ To report a vulnerability privately, see [SECURITY.md](SECURITY.md).
 
 ## Updates
 
-When a newer version is out, an **Update to x.y.z** button appears at the top of the window after start-up (Advanced). It
+When a newer version is out, an **Update to x.y.z** button appears at the top of the window after start-up (in both views). It
 opens Settings → Updates: **Download and verify** → **Install and restart** (asked again before it closes the app). You can
 also press **Check for updates** there at any time. Your settings and sign-in are kept. If you prefer, run the newer
 installer, or download the new zip yourself and replace the folder's contents.

@@ -284,7 +284,7 @@
         <Button Content="Open Settings" Click="Settings_Click" HorizontalAlignment="Left" Style="{StaticResource AccentButton}"/>
       </StackPanel>
 
-      <Grid Grid.Row="1" Visibility="{Binding ChatsVisibility}">
+      <Grid x:Name="ChatArea" Grid.Row="1" Visibility="{Binding ChatsVisibility}">
         <Grid.RowDefinitions>
           <RowDefinition Height="*"/>
           <RowDefinition Height="Auto"/>
@@ -444,10 +444,12 @@
                         </Style.Triggers>
                       </Style>
                     </StackPanel.Style>
-                    <Button Content="Copy" Style="{StaticResource CompactChip}" Visibility="{Binding CopyVisibility}"
+                    <Button Style="{StaticResource MiniIconButton}" Visibility="{Binding CopyVisibility}"
                             ToolTip="Copy this message" AutomationProperties.Name="Copy message"
                             Command="{Binding DataContext.CopyMessageCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                            CommandParameter="{Binding}"/>
+                            CommandParameter="{Binding}">
+                      <TextBlock Style="{StaticResource IconGlyph}" FontSize="13" Text="&#xE8C8;"/>
+                    </Button>
                     <Button Style="{StaticResource MiniIconButton}" Visibility="{Binding ReadAloudVisibility}"
                             ToolTip="{Binding ReadAloudLabel}" AutomationProperties.Name="Read reply aloud"
                             Command="{Binding DataContext.ReadAloudMessageCommand, RelativeSource={RelativeSource AncestorType=Window}}"
@@ -475,7 +477,7 @@
                               AutomationProperties.Name="Branch from here"
                               Command="{Binding DataContext.BranchFromHereCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                               CommandParameter="{Binding}">
-                        <TextBlock Style="{StaticResource IconGlyph}" FontSize="13" Text="&#xE8C8;"/>
+                        <TextBlock Style="{StaticResource IconGlyph}" FontSize="13" Text="&#xE8A7;"/>
                       </Button>
                     </StackPanel>
                   </StackPanel>
@@ -1778,6 +1780,28 @@
               </ItemsControl.ItemTemplate>
             </ItemsControl>
           </Border>
+          <!-- 0.6.0 voice chat: what it is doing now, a level meter and Stop; or why it ended -->
+          <Border Visibility="{Binding VoiceChatBarVisibility}" Background="{DynamicResource Brush.Well}" CornerRadius="12"
+                  Padding="12,8" Margin="0,0,0,8" AutomationProperties.Name="Voice chat">
+            <DockPanel>
+              <Button DockPanel.Dock="Right" Content="Stop" Style="{StaticResource CompactChip}" Command="{Binding ToggleVoiceChatCommand}"
+                      Visibility="{Binding VoiceChatStopVisibility}" AutomationProperties.Name="End the voice chat" ToolTip="End the voice chat (Esc)"/>
+              <Button DockPanel.Dock="Right" Style="{StaticResource MiniIconButton}" Command="{Binding DismissVoiceChatProblemCommand}"
+                      Visibility="{Binding VoiceChatProblemVisibility}" AutomationProperties.Name="Close" ToolTip="Close">
+                <TextBlock Style="{StaticResource IconGlyph}" FontSize="11" Text="&#xE711;"/>
+              </Button>
+              <TextBlock DockPanel.Dock="Left" Style="{StaticResource NavGlyph}" Text="&#xE7F6;" Width="24"/>
+              <StackPanel VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" Visibility="{Binding VoiceChatStopVisibility}">
+                  <TextBlock Text="{Binding VoiceChatStatus}" VerticalAlignment="Center" AutomationProperties.Name="Voice chat status"/>
+                  <ProgressBar Value="{Binding VoiceChatLevel, Mode=OneWay}" Maximum="1" Width="90" Height="4" Margin="12,0,0,0"
+                               VerticalAlignment="Center" AutomationProperties.Name="Microphone level"/>
+                </StackPanel>
+                <TextBlock Text="{Binding VoiceChatProblem}" Visibility="{Binding VoiceChatProblemVisibility}" TextWrapping="Wrap"
+                           Foreground="{DynamicResource Brush.Warning}" AutomationProperties.Name="Voice chat problem"/>
+              </StackPanel>
+            </DockPanel>
+          </Border>
           <!-- The chat box: one rounded card (text on top; + and microphone on the left; model, YOLO and send / stop on the right) -->
           <Grid>
           <!-- The shadow is its own empty layer: an effect on the card itself blurred the text typed in it. -->
@@ -1814,6 +1838,10 @@
                     <TextBlock Style="{StaticResource IconGlyph}" Text="&#xE71A;"/>
                   </Button>
                 </Grid>
+                <Button DockPanel.Dock="Left" Style="{StaticResource IconButton}" Command="{Binding ToggleVoiceChatCommand}"
+                        Visibility="{Binding VoiceChatButtonVisibility}" ToolTip="{Binding VoiceChatButtonTip}" AutomationProperties.Name="Voice chat">
+                  <TextBlock Style="{StaticResource IconGlyph}" Text="&#xE7F6;"/>
+                </Button>
                 <Button DockPanel.Dock="Right" Style="{StaticResource SendButton}" Command="{Binding SendCommand}" Visibility="{Binding SendButtonVisibility}"
                         ToolTip="Send (Enter). While a reply is running this adds your message to it. Type / for commands."
                         AutomationProperties.Name="Send or steer">

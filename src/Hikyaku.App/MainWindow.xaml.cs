@@ -13,6 +13,7 @@ public partial class MainWindow : Window
     private readonly ProfileSelectionService _selection;
     private readonly NotificationGate _gate;
     private readonly ISecretStore _secrets = new DpapiSecretStore(Path.Combine(App.DataDir, "secrets"));
+    private GatewayVoiceChatBackend? _voiceChatBackend;
     private NativeTokenStore? _nativeTokens;
     private AccessTokenStore? _accessTokens;
 
@@ -139,11 +140,16 @@ public partial class MainWindow : Window
             try { _settings.Save(_settingsPath); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { /* keep the in-memory choice */ }
         };
         Loaded += (_, _) => HookMessageScroller();
+        HookAttachmentPasteAndDrop();
         _vm.EarlierLoaded += ScrollMessageIntoView;   // keep the reader on the message they were at
         _vm.AttachFolderGrants(_folderGrants);
         _vm.AttachNetworkPublish(networkPublish, new SetupRequiredGitHubPullRequestApi());
         _vm.AttachTerminal(terminalOptIn, terminalController);
         _vm.AttachVoice(BuildVoiceController());
+        // 0.6.0 voice chat: the gateway's voice and this PC's microphone; demo and test runs get a silent fixture (no device).
+        _vm.AttachVoiceChat(App.DemoMode || App.SmokeMode || App.UiAcceptanceMode
+            ? () => new FixtureVoiceChatBackend()
+            : () => _hermes?.Auth is not null ? _voiceChatBackend ??= new GatewayVoiceChatBackend(() => _hermes?.Auth) : null);
         DataContext = _vm;
         Loaded += async (_, _) =>
         {
@@ -190,6 +196,7 @@ public partial class MainWindow : Window
             _settings.ActiveProfileId = id;
             try { _settings.Save(_settingsPath); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { /* keep the in-memory choice */ }
         };
+        Closed += (_, _) => _vm.EndVoiceChat(null);
         Closed += async (_, _) =>
         {
             _jobInboxPoll?.Cancel();
@@ -692,6 +699,12 @@ public partial class MainWindow : Window
         // One table (Hikyaku.Core.Shortcuts, Hermes Desktop's keys) drives this and the palette hints. Exact modifiers only.
         var key = e.Key == Key.System ? e.SystemKey : e.Key;
         var mods = Keyboard.Modifiers;
+        if (key == Key.Escape && mods == ModifierKeys.None && _vm.VoiceChatActive)
+        {
+            _vm.EndVoiceChat(null);                      // Esc ends a voice chat before anything else
+            e.Handled = true;
+            return;
+        }
         var action = Shortcuts.Match(key.ToString(), (mods & ModifierKeys.Control) != 0, (mods & ModifierKeys.Shift) != 0, (mods & ModifierKeys.Alt) != 0);
         if (action is not { } a) return;
         switch (a)

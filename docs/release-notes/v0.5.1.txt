@@ -1,0 +1,7 @@
+Hikyaku 0.5.1 - first fixes from daily use
+
+- Read aloud works again: it made no sound on some PCs. Replies are now played through Windows' own audio engine, straight from memory, in any format the gateway's voice uses (MP3, WAV, OGG/Opus, FLAC, AAC). If a reply still cannot be played, Hikyaku says why.
+- Paste pictures into the chat: press Ctrl+V in the chat box to add a screenshot or a copied image, or files copied in Explorer. You can also drag files onto the chat. Copied text still pastes as text.
+- Settings: the approval choice for dangerous commands (Manual, Smart, Off) now loads as soon as Settings opens, for the profile you are using. Before, it stayed greyed out until you picked another profile and switched back.
+
+Install: Settings, Updates (or the "Update to 0.5.1" button at the top of the window), then Download and verify, then Install and restart. New installs: run Hikyaku-Setup-0.5.1.exe.
