@@ -130,6 +130,56 @@ public class Checkpoint47VoiceChatCoreTests
     }
 
     [Fact]
+    public void Only_a_whole_stop_utterance_ends_the_chat_and_a_profile_list_replaces_the_defaults()
+    {
+        Assert.True(VoiceStopPhrases.IsStop("Stop.", null, null));
+        Assert.True(VoiceStopPhrases.IsStop("Hey Shisha, stop!", null, "Shisha"));
+        Assert.True(VoiceStopPhrases.IsStop("hermes never mind", null, null));
+        Assert.True(VoiceStopPhrases.IsStop("  Goodbye  ", null, null));
+        Assert.False(VoiceStopPhrases.IsStop("stop the container", null, null));
+        Assert.False(VoiceStopPhrases.IsStop("", null, null));
+        Assert.True(VoiceStopPhrases.IsStop("Goodbye Hermes", ["goodbye hermes"], null));
+        Assert.False(VoiceStopPhrases.IsStop("stop", ["goodbye hermes"], null));       // a profile list replaces the defaults
+        Assert.False(VoiceStopPhrases.IsStop("stop", [], null));                       // an empty list switches them off
+    }
+
+    [Fact]
+    public void Code_and_attached_files_are_never_spoken_and_only_the_new_words_are_sent()
+    {
+        Assert.Equal("Here: ", SpeakableText.SoFar("Here: ```py\nprint(1)", complete: false));          // an open block holds back
+        Assert.Equal("Here:  done.", SpeakableText.SoFar("Here: ```py\nprint(1)\n``` done.", complete: false));
+        Assert.Equal("Hello th", SpeakableText.SoFar("Hello th`", complete: false));                    // a backtick could open a block
+        Assert.Equal("See \nthe chart.", SpeakableText.SoFar("See \nMEDIA:/tmp/chart.png\nthe chart.", complete: true));
+        Assert.Equal("Here is ", SpeakableText.SoFar("Here is MEDI", complete: false));                 // could still become MEDIA:
+        Assert.Equal(" there", SpeakableText.NewPart("Hello", "Hello there"));
+        Assert.Equal("", SpeakableText.NewPart("Hello", "Hello"));
+        Assert.Equal("ful day", SpeakableText.NewPart("What a wonder", "What a wonderful day"));
+        Assert.Equal("great day", SpeakableText.NewPart("What a good", "What a great day"));            // rewritten: from where they part
+    }
+
+    [Fact]
+    public void Voice_settings_come_from_the_profile_config_with_defaults()
+    {
+        var d = VoiceChatSettings.From(null);
+        Assert.Equal(1_250, d.Activity.SilenceMs);
+        Assert.True(d.BargeIn.Enabled);
+        Assert.Null(d.StopPhrases);
+        var config = new ConfigValues(System.Text.Json.Nodes.JsonNode.Parse(
+            """{"voice":{"silence_duration":2,"barge_in":false,"barge_in_threshold_multiplier":1.5,"barge_in_grace_seconds":0.8,"stop_phrases":["bye"]}}""")!.AsObject());
+        var s = VoiceChatSettings.From(config);
+        Assert.Equal(2_000, s.Activity.SilenceMs);
+        Assert.False(s.BargeIn.Enabled);
+        Assert.Equal(1.5, s.BargeIn.Multiplier);
+        Assert.Equal(800, s.BargeIn.GraceMs);
+        Assert.Equal(["bye"], s.StopPhrases!);
+        var odd = VoiceChatSettings.From(new ConfigValues(System.Text.Json.Nodes.JsonNode.Parse(
+            """{"voice":{"silence_duration":"x","barge_in":"yes","stop_phrases":"stop"}}""")!.AsObject()));
+        Assert.Equal(1_250, odd.Activity.SilenceMs);                                   // unreadable values keep the defaults
+        Assert.True(odd.BargeIn.Enabled);
+        Assert.Null(odd.StopPhrases);
+    }
+
+    [Fact]
     public void The_level_is_scaled_rms_clipped_to_one()
     {
         Assert.Equal(0f, VoiceLevel.Of(new short[320]));
