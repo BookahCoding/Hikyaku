@@ -1,0 +1,14 @@
+name: hikyaku-files
+label: Hikyaku folder bridge
+version: 0.1.0
+manifest_version: 2
+requires_hermes: ">=0.21.5"
+description: >
+  One tool so the agent can list, read, and write files in folders the user allowed in the
+  Hikyaku Windows app, and delete a file or a folder only after the app says yes. The plugin
+  holds the request in memory and does not open a path. The open app does the file work.
+author: BookahCoding
+homepage: https://github.com/BookahCoding/Hikyaku
+license: MIT
+provides_tools:
+  - hikyaku_files
