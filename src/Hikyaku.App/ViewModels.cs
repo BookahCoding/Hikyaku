@@ -211,8 +211,10 @@ public sealed class SessionRowVM : Observable
     public bool ArchivedView { get; }
     /// <summary>The gateway's shared read state, updated here when this app marks the chat read or unread.</summary>
     public bool IsUnread { get => _unread; set { Set(ref _unread, value); Raise(nameof(PinMark)); } }
-    public bool IsPinned { get => _pinned; set { Set(ref _pinned, value); Raise(nameof(Title)); Raise(nameof(PinMark)); } }
+    public bool IsPinned { get => _pinned; set { Set(ref _pinned, value); Raise(nameof(Title)); Raise(nameof(PinMark)); Raise(nameof(PinVisibility)); } }
     public string PinMark => _pinned ? "Pinned" : "";
+    /// <summary>An unpinned row used to keep a blank line under the preview. The word only takes space when the chat is pinned.</summary>
+    public Visibility PinVisibility => _pinned ? Visibility.Visible : Visibility.Collapsed;
     private string _liveLabel = "";
     /// <summary>"Running" / "Waiting for you" from the gateway's live status; empty when unknown or idle. Text, not only colour.</summary>
     public string LiveLabel { get => _liveLabel; set { Set(ref _liveLabel, value); Raise(nameof(LiveVisibility)); } }
@@ -220,6 +222,7 @@ public sealed class SessionRowVM : Observable
     public string Title { get => _title ?? (string.IsNullOrWhiteSpace(Summary.Title) ? Summary.Id : Summary.Title!); set { _title = value; Raise(); } }
     private string? _title;
     public string Preview => Summary.Snippet ?? Summary.Preview ?? "";
+    public Visibility PreviewVisibility => Preview.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
 }
 
 public enum MainNav { Chats, Bots, Inbox, NeedsYou, Projects, Scheduled, Capabilities, Insights, Rooms, Artifacts, Journey }

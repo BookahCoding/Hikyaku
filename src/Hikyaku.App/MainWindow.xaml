@@ -225,9 +225,9 @@
                 <DataTemplate>
                   <StackPanel>
                     <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis"/>
-                    <TextBlock Text="{Binding Preview}" Foreground="{DynamicResource Brush.TextMuted}"
+                    <TextBlock Text="{Binding Preview}" Visibility="{Binding PreviewVisibility}" Foreground="{DynamicResource Brush.TextMuted}"
                                FontSize="{StaticResource Size.Caption}" TextTrimming="CharacterEllipsis"/>
-                    <TextBlock Text="{Binding PinMark}" Foreground="{DynamicResource Brush.TextMuted}" FontSize="{StaticResource Size.Caption}"/>
+                    <TextBlock Text="{Binding PinMark}" Visibility="{Binding PinVisibility}" Foreground="{DynamicResource Brush.TextMuted}" FontSize="{StaticResource Size.Caption}"/>
                     <TextBlock Text="{Binding LiveLabel}" Visibility="{Binding LiveVisibility}" Foreground="{DynamicResource Brush.Accent}"
                                FontSize="{StaticResource Size.Caption}" FontWeight="SemiBold"/>
                   </StackPanel>

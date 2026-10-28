@@ -5,6 +5,7 @@ are `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- Recent chats no longer keep a blank line under every row. "Pinned" and the preview only take space when there is something to show.
 - While a reply is thinking, the reasoning text updates in small batches instead of on every token, so a long thought stays responsive. The full text is still shown.
 - Each message has a Copy button (the text as written, including markdown). Nothing is sent.
 - Unsent drafts are no longer lost when two saves overlap (typing quickly, or switching chats while a save is still writing).
