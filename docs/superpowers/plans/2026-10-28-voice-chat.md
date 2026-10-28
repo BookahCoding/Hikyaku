@@ -19,7 +19,7 @@ paths.
 - Contract: hermes-agent `hermes_cli/web_routers/audio.py` (speak-stream, tts-lease, stt-lease, speak, transcribe) and BookahHermes `shared/core/.../voice/{Speech,BargeIn,SpeechStream}.kt` @ `5f00986b2a582e480592fd680131d501d57038ef`.
 - Ports keep the Android constants exactly (listed in Tasks 1–2); levels are RMS of the 16-bit samples scaled ×4 and clipped to 1 ("1.0 is loud speech").
 - `ExperienceFeature.VoiceChat` is visible in Simple and Advanced. Nothing is answered by voice; a stop phrase is never sent; nothing is resent automatically.
-- Commits: explicit paths, message ends with only `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. Gates after each task that touches App code (`gates.ps1` in the scratchpad); protected file hash and `.superpowers` manifest unchanged.
+- Commits: explicit paths, message ends with only the Co-Authored-By trailer (copy it from `git log -1`). Gates after each task that touches App code (`gates.ps1` in the scratchpad); protected file hash and `.superpowers` manifest unchanged.
 - C# strings with non-ASCII text are written with the Edit/Write tools, never through shell heredocs.
 
 ## Review Focus
