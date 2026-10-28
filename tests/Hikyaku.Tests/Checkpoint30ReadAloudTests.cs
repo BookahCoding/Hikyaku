@@ -199,7 +199,7 @@ public class Checkpoint30ReadAloudTests
     {
         var (ctl, transport, player) = Make();
         using var _ = ctl;
-        transport.SpeakMime = "audio/ogg";
+        transport.SpeakMime = "audio/webm";
         var bad = await ctl.ReadAloudAsync("Hello");
         Assert.False(bad.Ok);
         Assert.Contains("format", bad.Error);
