@@ -56,6 +56,30 @@ public sealed class NativeTokenStore(ISecretStore secrets)
 {
     private readonly object _gate = new();
     private readonly Dictionary<string, NativeSession?> _cache = new();
+    private readonly Dictionary<string, SemaphoreSlim> _refreshGates = new();
+
+    /// <summary>
+    /// One refresh at a time per gateway for the whole app: every connection (chat, Inbox, Needs you, Settings) shares the
+    /// saved sign-in, and a gateway that rotates refresh tokens refuses the second use of one (0.5.2 live finding).
+    /// </summary>
+    internal SemaphoreSlim RefreshGate(Uri gateway)
+    {
+        var key = Key(gateway);
+        lock (_gate)
+        {
+            if (!_refreshGates.TryGetValue(key, out var gate)) _refreshGates[key] = gate = new SemaphoreSlim(1, 1);
+            return gate;
+        }
+    }
+
+    /// <summary>Forgets the gateway's sign-in only while it is still the one holding <paramref name="refreshToken"/>.</summary>
+    internal void ForgetIf(Uri gateway, string refreshToken)
+    {
+        lock (_gate)
+        {
+            if (Get(gateway) is { } current && current.RefreshToken == refreshToken) Set(gateway, null);
+        }
+    }
 
     private static string Key(Uri gateway) => "native-session:" + DashboardAuth.NormalizeBase(gateway);
 
@@ -137,7 +161,6 @@ internal sealed class NativeBearerHandler : DelegatingHandler
     private readonly NativeTokenStore _tokens;
     private readonly Uri _base;
     private readonly Func<DateTimeOffset> _clock;
-    private readonly SemaphoreSlim _refreshGate = new(1, 1);
     private readonly Dictionary<string, DateTimeOffset> _failedAt = new();
 
     public NativeBearerHandler(HttpMessageHandler inner, NativeTokenStore tokens, Uri baseUri, Func<DateTimeOffset> clock)
@@ -197,7 +220,8 @@ internal sealed class NativeBearerHandler : DelegatingHandler
 
     private async Task<RefreshResult> RefreshAsync(NativeSession used, CancellationToken ct)
     {
-        await _refreshGate.WaitAsync(ct).ConfigureAwait(false);
+        var refreshGate = _tokens.RefreshGate(_base);
+        await refreshGate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
             var current = _tokens.Get(_base);
@@ -228,9 +252,10 @@ internal sealed class NativeBearerHandler : DelegatingHandler
                 }
                 else if (resp.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.BadRequest)
                 {
-                    _tokens.Set(_base, null);
+                    _tokens.ForgetIf(_base, current.RefreshToken);
                     _failedAt.Remove(current.AccessToken);
-                    return new(RefreshOutcome.Rejected, null);
+                    // A sign-in saved meanwhile (another app window, a fresh browser sign-in) is still good.
+                    return _tokens.Get(_base) is { } newer ? new(RefreshOutcome.Done, newer) : new(RefreshOutcome.Rejected, null);
                 }
             }
             catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException)
@@ -242,7 +267,7 @@ internal sealed class NativeBearerHandler : DelegatingHandler
         }
         finally
         {
-            _refreshGate.Release();
+            refreshGate.Release();
         }
     }
 }

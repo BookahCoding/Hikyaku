@@ -154,6 +154,35 @@ public sealed class AudioApi(DashboardAuth auth)
         }
     }
 
+    /// <summary>
+    /// Warms the profile's text-to-speech for a voice chat (<c>active: true</c>) or lets it go (<c>false</c>), so the first
+    /// reply does not wait for a model load (hermes-agent <c>/api/audio/tts-lease</c>). Best effort: an older gateway without
+    /// the route, or any failure, is ignored.
+    /// </summary>
+    public Task SetTtsLeaseAsync(string lease, bool active, string? profile, CancellationToken ct) =>
+        SetLeaseAsync("api/audio/tts-lease", lease, active, profile, ct);
+
+    /// <summary>The same for speech-to-text (<c>/api/audio/stt-lease</c>, newer gateways only).</summary>
+    public Task SetSttLeaseAsync(string lease, bool active, string? profile, CancellationToken ct) =>
+        SetLeaseAsync("api/audio/stt-lease", lease, active, profile, ct);
+
+    private async Task SetLeaseAsync(string route, string lease, bool active, string? profile, CancellationToken ct)
+    {
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Post, BuildUri(route, profile))
+            {
+                Content = new StringContent(JsonSerializer.Serialize(new { lease, active }), Encoding.UTF8, "application/json")
+            };
+            using var resp = await auth.SendAsync(req, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or AuthFailedException or IOException
+                                       || ex is OperationCanceledException && !ct.IsCancellationRequested)
+        {
+            // A warm-up that cannot happen only makes the first reply slower.
+        }
+    }
+
     private Uri BuildUri(string relative, string? profile)
     {
         var path = relative + (string.IsNullOrWhiteSpace(profile) ? "" : "?profile=" + Uri.EscapeDataString(profile));

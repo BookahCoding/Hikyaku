@@ -109,4 +109,4 @@ Upstream Hermes Desktop offers Commit & Push and force worktree options — Hiky
 - Claiming shell is confined to the folder  
 - Perfect secret detection  
 
-Prototype scenarios: `design/index.html` (folder grant, secret warning, push confirm, terminal opt-in copy).
+The early HTML prototype of these scenarios was removed once the app implemented them.

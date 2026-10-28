@@ -2,7 +2,7 @@
 
 **Status:** design recommendation for the maintainer's review.  
 **Grounded in:** [`DESKTOP-PARITY.md`](DESKTOP-PARITY.md), NN/g progressive disclosure, GitHub Desktop guided commit/push split, Hermes Desktop Simple/Advanced **visibility** pattern (docs 2026-10-25).  
-**Not:** app implementation. Mock: `design/index.html`.
+**Not:** app implementation. (The early HTML mock-up was removed once the app replaced it.)
 
 ## Intent (agreed constraints)
 
@@ -80,7 +80,7 @@ No combined “Commit & Push” as the only primary action in Simple mode (upstr
 
 ## Scenarios the prototype must teach
 
-See `design/` — synthetic only:
+The early HTML mock-up showed these (since removed; the app implements them):
 
 1. Explicit folder grant  
 2. Inspect diff  

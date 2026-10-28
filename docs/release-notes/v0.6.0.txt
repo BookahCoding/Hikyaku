@@ -1,0 +1,9 @@
+Hikyaku 0.6.0 - voice chat
+
+- Talk with Hermes: the headset button in the chat box starts a hands-free voice chat with the agent of the open chat, in Simple and Advanced view.
+- It listens until you pause, sends what you said as your message, and speaks the reply while it is still being written, in your profile's voice. Then it listens again.
+- Talk over the reply to cut in. Say "stop" (or "goodbye", "never mind"), press Stop or Esc, or switch to another chat to end it. Three silent turns in a row end it too.
+- When Hermes needs your approval or an answer, the voice chat stops and asks you to check the screen. Nothing is ever approved by voice.
+- Code and attached files are never read out.
+- If Windows keeps the microphone from desktop apps, Hikyaku says so and where to switch it on: Settings, Privacy & security, Microphone, "Let desktop apps access your microphone".
+- Works best with a headset. With loudspeakers the voice may sometimes hear itself; your profile's voice.barge_in setting can switch interrupting off.

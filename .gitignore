@@ -9,7 +9,6 @@ TestResults/
 # secrets / local config
 .env
 .env.*
-!.env.example
 *.local.json
 hikyaku.local.*
 *.pfx

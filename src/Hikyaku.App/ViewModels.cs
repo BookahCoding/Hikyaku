@@ -665,6 +665,8 @@ public sealed partial class MainViewModel : Observable
         set
         {
             if (_selected == value) return;
+            if (value is null && _refillingList) return;        // the list emptied for a refill, not a choice to close the chat
+            if (_voiceChatRun is { } voice && !ReferenceEquals(voice.Conversation, value)) EndVoiceChat(null);   // a voice chat belongs to its chat
             _ = PersistDraftAsync();
             ExitEditMode(restoreDraft: false);
             SetRewindNotice("");
@@ -734,10 +736,20 @@ public sealed partial class MainViewModel : Observable
         RaiseStatus();
         SyncTerminalProfileBinding();
         var visible = _selection.Filter(_all, c => c.Profile);
-        Conversations.Clear();
-        foreach (var c in visible) Conversations.Add(c);
+        // The sidebar list's selection is bound two-way to SelectedConversation: emptying the list writes "no chat" back. That
+        // must not deselect the open chat (0.5.2 live finding: after Settings was saved, Send and New chat stopped working).
+        _refillingList = true;
+        try
+        {
+            Conversations.Clear();
+            foreach (var c in visible) Conversations.Add(c);
+        }
+        finally { _refillingList = false; }
         if (_selected is not null && !visible.Contains(_selected)) SelectedConversation = null;
+        else if (_selected is not null) Raise(nameof(SelectedConversation));     // the refilled list shows it selected again
     }
+
+    private bool _refillingList;
 
     public void NewChat()
     {
@@ -990,30 +1002,55 @@ public sealed partial class MainViewModel : Observable
             CheckFileExists = true
         };
         if (dlg.ShowDialog() != true) return;
-        foreach (var path in dlg.FileNames)
+        foreach (var problem in AddAttachmentFiles(dlg.FileNames)) MessageBox.Show(problem);
+    }
+
+    /// <summary>Whether files can be added to the open chat now (the "+" button's rule; also for paste and drop).</summary>
+    public bool CanAddAttachments => !_busy && SelectedConversation is { } c && _gate.Allow(Surface.Conversation, c.Profile);
+
+    /// <summary>
+    /// Adds files to the open chat's pending attachments: chosen with "+", pasted (copied in Explorer) or dropped on the chat.
+    /// Returns what could not be added, in words, for the caller to show.
+    /// </summary>
+    public IReadOnlyList<string> AddAttachmentFiles(IEnumerable<string> paths)
+    {
+        var problems = new List<string>();
+        if (!CanAddAttachments) return ["Files can be added once the reply has finished."];
+        foreach (var path in paths)
         {
             try
             {
                 var info = new FileInfo(path);
-                if (!info.Exists) continue;
+                if (!info.Exists) { problems.Add($"Skipping {Path.GetFileName(path)}: only files can be added, not folders."); continue; }
                 if (info.Length > OutgoingAttachment.MaxBytes)
                 {
-                    MessageBox.Show($"Skipping {info.Name}: exceeds {OutgoingAttachment.MaxBytes} bytes.");
+                    problems.Add($"Skipping {info.Name}: it is larger than {OutgoingAttachment.MaxBytes / (1024 * 1024)} MB.");
                     continue;
                 }
-                var bytes = File.ReadAllBytes(path);
-                var mime = GuessMime(info.Name);
-                var att = new OutgoingAttachment(Guid.NewGuid().ToString("N"), info.Name, mime, bytes);
-                var err = _attachQueue.TryAdd(convo.Profile, _gate, att);
-                if (err is not null) MessageBox.Show(err);
+                if (AddAttachment(info.Name, GuessMime(info.Name), File.ReadAllBytes(path)) is { } err) problems.Add(err);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
             {
-                MessageBox.Show("Could not read file: " + ex.Message);
+                problems.Add("Could not read file: " + ex.Message);
             }
         }
+        return problems;
+    }
+
+    /// <summary>A picture pasted from the clipboard (a screenshot or a copied image), as PNG. Returns a problem, or null.</summary>
+    public string? AddPastedImage(byte[] png)
+    {
+        if (!CanAddAttachments) return "Pictures can be added once the reply has finished.";
+        if (png.Length > OutgoingAttachment.MaxBytes) return $"The pasted picture is larger than {OutgoingAttachment.MaxBytes / (1024 * 1024)} MB.";
+        return AddAttachment($"Pasted image {DateTime.Now:yyyy-MM-dd HH.mm.ss}.png", "image/png", png);
+    }
+
+    private string? AddAttachment(string name, string mime, byte[] bytes)
+    {
+        var err = _attachQueue.TryAdd(SelectedConversation!.Profile, _gate, new OutgoingAttachment(Guid.NewGuid().ToString("N"), name, mime, bytes));
         RefreshPendingAttachments();
         ((RelayCommand)SendCommand).Refresh();
+        return err;
     }
 
     private static string GuessMime(string name) =>
