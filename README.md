@@ -16,7 +16,7 @@ edges with other servers and please report them (see below); fixes arrive as in-
 
 ## What it does
 
-- **Chats** with your Hermes agents: streaming replies, maths (TeX), attachments, voice dictation, read aloud, edit and
+- **Chats** with your Hermes agents: streaming replies, maths (TeX), attachments, voice dictation, read aloud, copy, edit and
   regenerate, branch, find in chat, steer or queue a message while a reply is running, and clear cards when a reply fails.
   Nothing is ever resent automatically.
 - **Inbox** for the results of your scheduled jobs (open one as a chat; hide jobs you don't care about), and **Needs you** for

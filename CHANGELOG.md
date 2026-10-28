@@ -5,6 +5,8 @@ are `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- Each message has a Copy button (the text as written, including markdown). Nothing is sent.
+
 ## 0.5.0 — first public test release
 
 First public release of the Windows client for a Hermes Agent gateway, numbered 0.5 because it is still being tested

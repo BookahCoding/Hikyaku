@@ -22,6 +22,12 @@ public partial class MainWindow : Window
     /// <summary>One app-wide store so Settings and the live transport see the same browser sign-in.</summary>
     private NativeTokenStore NativeTokens => _nativeTokens ??= new NativeTokenStore(_secrets);
     private readonly MainViewModel _vm;
+
+    private static void CopyToClipboard(string text)
+    {
+        try { Clipboard.SetText(text); }
+        catch (System.Runtime.InteropServices.COMException) { /* clipboard busy */ }
+    }
     private readonly InboxStore _inboxStore;
     private readonly DraftStore _drafts;
     private readonly OfflineChatCache _offline;
@@ -98,7 +104,8 @@ public partial class MainWindow : Window
             var dlg = new Microsoft.Win32.SaveFileDialog { FileName = suggested, Title = "Save artifact" };
             return dlg.ShowDialog(this) == true ? dlg.FileName : null;
         };
-        _vm.CopyArtifactText = text => { try { Clipboard.SetText(text); } catch (System.Runtime.InteropServices.COMException) { /* clipboard busy */ } };
+        _vm.CopyArtifactText = CopyToClipboard;
+        _vm.CopyPlainText = CopyToClipboard;
         _vm.SignInOffered = () => PlainStatus.For(CurrentConnectionKind()).OfferSignIn;
         _vm.ConfirmConfig = (title, message) => MessageBox.Show(this, message, title,
             MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) == MessageBoxResult.Yes;

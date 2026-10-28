@@ -35,7 +35,7 @@ public sealed partial class MessageVM(string role, string text = "") : Observabl
     private string _activity = "";
     private bool _useMarkdown = true;
     public string Role { get; } = role;
-    public string Text { get => _text; private set { Set(ref _text, value); Raise(nameof(Markdown)); Raise(nameof(ReadAloudVisibility)); Raise(nameof(ActivityLineVisibility)); } }
+    public string Text { get => _text; private set { Set(ref _text, value); Raise(nameof(Markdown)); Raise(nameof(ReadAloudVisibility)); Raise(nameof(CopyVisibility)); Raise(nameof(ActivityLineVisibility)); } }
     public string Markdown => _text;
     public bool UseMarkdown { get => _useMarkdown; set => Set(ref _useMarkdown, value); }
     public string Activity { get => _activity; set { Set(ref _activity, value); Raise(nameof(ActivityVisibility)); } }
@@ -91,6 +91,8 @@ public sealed partial class MessageVM(string role, string text = "") : Observabl
     public Visibility ActivityVisibility => _failure is null && Activity.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     /// <summary>Read aloud is offered on assistant replies that have text (never on side cards or failures).</summary>
     public Visibility ReadAloudVisibility => Role == "Assistant" && !_sideCard && _failure is null && _text.Trim().Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+    /// <summary>Copy is offered on any message that has text, including your own and a reply that failed part-way.</summary>
+    public Visibility CopyVisibility => _text.Trim().Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     private bool _reading;
     /// <summary>This reply is being read aloud (or its audio is being fetched).</summary>
     public bool IsReading { get => _reading; set { Set(ref _reading, value); Raise(nameof(ReadAloudLabel)); Raise(nameof(ReadAloudGlyph)); } }
@@ -390,6 +392,10 @@ public sealed partial class MainViewModel : Observable
         _status = statusBanner;
         _identityStrip = identityStrip ?? (() => "");
         SendCommand = new RelayCommand(_ => _ = SendAsync(), _ => CanSendNow());
+        CopyMessageCommand = new RelayCommand(p =>
+        {
+            if (p is MessageVM m && m.Text.Trim().Length > 0) CopyPlainText?.Invoke(m.Text);
+        });
         CancelCommand = new RelayCommand(_ => _cts?.Cancel(), _ => _busy);
         InitRewindCommands();
         InitBranchCommands();
@@ -496,6 +502,9 @@ public sealed partial class MainViewModel : Observable
     public ObservableCollection<RoomRowVM> RoomRows { get; } = new();
     public ObservableCollection<SubagentRowVM> SubagentRows { get; } = new();
     public ICommand SendCommand { get; }
+    /// <summary>Copies one message's text. The window sets this to the clipboard; tests set a recorder. Nothing is sent.</summary>
+    public Action<string>? CopyPlainText { get; set; }
+    public ICommand CopyMessageCommand { get; }
     public ICommand CancelCommand { get; }
     public ICommand RefreshInboxCommand { get; }
     public ICommand ShowChatsCommand { get; }

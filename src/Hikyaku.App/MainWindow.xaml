@@ -444,6 +444,10 @@
                         </Style.Triggers>
                       </Style>
                     </StackPanel.Style>
+                    <Button Content="Copy" Style="{StaticResource CompactChip}" Visibility="{Binding CopyVisibility}"
+                            ToolTip="Copy this message" AutomationProperties.Name="Copy message"
+                            Command="{Binding DataContext.CopyMessageCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                            CommandParameter="{Binding}"/>
                     <Button Style="{StaticResource MiniIconButton}" Visibility="{Binding ReadAloudVisibility}"
                             ToolTip="{Binding ReadAloudLabel}" AutomationProperties.Name="Read reply aloud"
                             Command="{Binding DataContext.ReadAloudMessageCommand, RelativeSource={RelativeSource AncestorType=Window}}"
