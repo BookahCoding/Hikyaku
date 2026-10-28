@@ -54,24 +54,39 @@ public sealed class AesGcmSealer : IByteSealer
     }
 }
 
-/// <summary>Composer drafts keyed by gateway+profile (BookahHermes DraftStore).</summary>
+/// <summary>
+/// Composer drafts keyed by gateway+profile (BookahHermes DraftStore).
+/// The composer writes on every keystroke and again when the chat changes, so two saves are often in flight.
+/// Each save loads the whole file, changes one entry and writes it back; they run one at a time so a slower
+/// save cannot replace a newer draft or drop another profile's draft.
+/// </summary>
 public sealed class DraftStore(IPreferenceStore store)
 {
-    private readonly object _gate = new();
+    private readonly SemaphoreSlim _gate = new(1, 1);
 
     public async Task<string> GetAsync(ProfileKey key, CancellationToken ct = default)
     {
-        var map = await LoadAsync(ct).ConfigureAwait(false);
-        return map.TryGetValue(KeyOf(key), out var d) ? d : "";
+        await _gate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            var map = await LoadAsync(ct).ConfigureAwait(false);
+            return map.TryGetValue(KeyOf(key), out var d) ? d : "";
+        }
+        finally { _gate.Release(); }
     }
 
     public async Task SetAsync(ProfileKey key, string draft, CancellationToken ct = default)
     {
-        var map = await LoadAsync(ct).ConfigureAwait(false);
-        var k = KeyOf(key);
-        if (string.IsNullOrEmpty(draft)) map.Remove(k);
-        else map[k] = draft;
-        await SaveAsync(map, ct).ConfigureAwait(false);
+        await _gate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            var map = await LoadAsync(ct).ConfigureAwait(false);
+            var k = KeyOf(key);
+            if (string.IsNullOrEmpty(draft)) map.Remove(k);
+            else map[k] = draft;
+            await SaveAsync(map, ct).ConfigureAwait(false);
+        }
+        finally { _gate.Release(); }
     }
 
     private static string KeyOf(ProfileKey k) => k.GatewayId + "\0" + k.ProfileId;

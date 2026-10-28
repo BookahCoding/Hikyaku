@@ -161,6 +161,60 @@ public class OfflineChatTests
         Assert.Equal("", await drafts.GetAsync(A));
     }
 
+    /// <summary>
+    /// The composer saves on every keystroke, so two saves are often in flight together. Each one loads the file,
+    /// changes one profile and writes the whole map back. If those overlap, the slower save puts back a stale map
+    /// and the newer draft (or another profile's draft) disappears.
+    /// </summary>
+    [Fact]
+    public async Task Overlapping_saves_keep_the_newer_draft_and_the_other_profile()
+    {
+        var store = new StaleSnapshotStore();
+        var drafts = new DraftStore(store);
+        var first = drafts.SetAsync(A, "older");
+        await store.FirstLoadStarted.Task;
+        var second = drafts.SetAsync(B, "kept");
+        store.ReleaseFirstLoad.TrySetResult();
+        await Task.WhenAll(first, second);
+        Assert.Equal("older", await drafts.GetAsync(A));
+        Assert.Equal("kept", await drafts.GetAsync(B));
+
+        store = new StaleSnapshotStore();
+        drafts = new DraftStore(store);
+        first = drafts.SetAsync(A, "first");
+        await store.FirstLoadStarted.Task;
+        second = drafts.SetAsync(A, "second");
+        store.ReleaseFirstLoad.TrySetResult();
+        await Task.WhenAll(first, second);
+        Assert.Equal("second", await drafts.GetAsync(A));
+    }
+
+    /// <summary>The first load snapshots the file and then waits, so a second save can finish against the same snapshot.</summary>
+    private sealed class StaleSnapshotStore : IPreferenceStore
+    {
+        private int _loads;
+        public string? Content;
+        public TaskCompletionSource FirstLoadStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource ReleaseFirstLoad { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async Task<string?> LoadAsync(CancellationToken ct = default)
+        {
+            var snapshot = Content;
+            if (Interlocked.Increment(ref _loads) == 1)
+            {
+                FirstLoadStarted.TrySetResult();
+                await ReleaseFirstLoad.Task.WaitAsync(ct);
+            }
+            return snapshot;
+        }
+
+        public Task SaveAsync(string content, CancellationToken ct = default)
+        {
+            Content = content;
+            return Task.CompletedTask;
+        }
+    }
+
     [Fact]
     public async Task OfflineTranscript_RoundTrips_AndDropsDeselected()
     {
