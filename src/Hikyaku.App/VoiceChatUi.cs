@@ -173,7 +173,7 @@ public sealed partial class MainViewModel
         private readonly DispatcherTimer _poll;
         private readonly object _gate = new();
         private SpeechJob? _speech;
-        private int _historyAtSend, _needsAtSend, _ticks;
+        private int _historyAtSend, _ticks, _turn;
         private bool _turnActive, _sawBusy, _lastNeeds;
         private string _lastReply = "";
 
@@ -216,52 +216,69 @@ public sealed partial class MainViewModel
             catch (Exception) { Session!.OnTranscribeFailed("The gateway could not turn what you said into text."); }
         });
 
-        public void Send(string text)
+        public void Send(int turn, string text)
         {
             lock (_gate) { _turnActive = false; }               // the previous turn's end is not this one's
-            _vm._voiceChatDispatcher!.BeginInvoke(async () => await SendOnUiAsync(text));
+            _vm._voiceChatDispatcher!.BeginInvoke(async () =>
+            {
+                try { await SendOnUiAsync(turn, text); }
+                catch (Exception) { Session?.OnTurnEnded(turn, true, "What you said could not be sent."); }   // never let it close the app
+            });
         }
 
-        private async Task SendOnUiAsync(string text)
+        /// <summary>This voice chat is still the one running, in the chat it belongs to.</summary>
+        private bool Current => ReferenceEquals(_vm._voiceChatRun, this) && ReferenceEquals(_vm.SelectedConversation, Conversation)
+                                && !Token.IsCancellationRequested && Session is { Phase: not VoiceChatPhase.Ended };
+
+        private async Task SendOnUiAsync(int turn, string text)
         {
             if (!ReferenceEquals(_vm._voiceChatRun, this)) return;
             if (!ReferenceEquals(_vm.SelectedConversation, Conversation)) { _vm.EndVoiceChat(null); return; }
             // A cut-in stops the turn first; sending while it still runs would steer it instead.
             for (var waited = 0; _vm._busy && waited < 10_000; waited += 50) await Task.Delay(50).ConfigureAwait(true);
+            // Everything may have changed while waiting: the chat ended, another chat is open, or a newer turn was decided.
+            if (!Current || Session!.Turn != turn) return;
+            if (_vm._busy) { Session.OnTurnEnded(turn, true, "Hermes was still busy, so what you said was not sent."); return; }
             lock (_gate)
             {
                 _historyAtSend = Conversation.History.Count;
-                _needsAtSend = _vm.NeedsYouItems.Count;
                 _lastReply = "";
                 _lastNeeds = false;
                 _sawBusy = false;
                 _ticks = 0;
+                _turn = turn;
                 _turnActive = true;
             }
-            _vm.InputText = text;
-            if (_vm.SendCommand.CanExecute(null)) _vm.SendCommand.Execute(null);
-            else Session?.OnTurnEnded(true, "The message could not be sent.");
+            // Only what was said: never the typed draft, staged files or terminal context, and never an edit of an older message.
+            await _vm.SendCoreAsync(null, textOverride: text, textOnly: true).ConfigureAwait(true);
         }
 
         /// <summary>The reply as it grows, Needs-you, and the end of the turn, read from the open chat (UI thread).</summary>
         private void PollTurn()
         {
             if (Session is not { } session) return;
-            lock (_gate) { if (!_turnActive) return; }
+            bool active;
+            int turn;
+            lock (_gate) { active = _turnActive; turn = _turn; }
+            // Needs-you is read while a turn runs and while the chat waits for an answer (the turn may end meanwhile).
+            if (!active && session.Phase != VoiceChatPhase.WaitingForYou) return;
+            // Only this chat's own requests: another chat's or a scheduled job's approval is not this conversation's.
+            var sessionId = Conversation.SessionId ?? Conversation.StoredSessionId;
+            var needs = sessionId is not null && _vm.NeedsYouItems.Any(i => i.Request.SessionId == sessionId);
+            if (needs != _lastNeeds) { _lastNeeds = needs; session.OnNeedsYou(needs); }
+            if (!active) return;
             _ticks++;
             if (_vm._busy) _sawBusy = true;
             var reply = Conversation.History.Skip(_historyAtSend).LastOrDefault(m => m.Role == "Assistant");
             if (reply is not null && reply.Text != _lastReply)
             {
                 _lastReply = reply.Text;
-                session.OnReplyText(reply.Text);
+                session.OnReplyText(turn, reply.Text);
             }
-            var needs = _vm.NeedsYouItems.Count > _needsAtSend;
-            if (needs != _lastNeeds) { _lastNeeds = needs; session.OnNeedsYou(needs); }
             if (!_vm._busy && (_sawBusy || _ticks > 20))
             {
                 lock (_gate) _turnActive = false;
-                session.OnTurnEnded(reply?.Failure is not null, reply?.Failure?.Title);
+                session.OnTurnEnded(turn, reply?.Failure is not null, reply?.Failure?.Title);
             }
         }
 
@@ -313,6 +330,9 @@ public sealed partial class MainViewModel
             private readonly Channel<string?> _text = Channel.CreateUnbounded<string?>();
             private readonly CancellationTokenSource _cts = CancellationTokenSource.CreateLinkedTokenSource(run.Token);
 
+            /// <summary>Still the speech the chat wants: a stopped or replaced job touches neither the speaker nor the session.</summary>
+            private bool Current => ReferenceEquals(Volatile.Read(ref run._speech), this) && !_cts.IsCancellationRequested;
+
             public void Append(string text) => _text.Writer.TryWrite(text);
             public void Finish() => _text.Writer.TryWrite(null);
             public void Stop() { try { _cts.Cancel(); } catch (ObjectDisposedException) { } }
@@ -346,7 +366,7 @@ public sealed partial class MainViewModel
                 }
                 catch (Exception)
                 {
-                    run.Session?.OnSpeechDone();                    // the loop goes on; the reply is on screen
+                    if (Current) run.Session?.OnSpeechDone();       // the loop goes on; the reply is on screen
                 }
                 finally
                 {
@@ -359,6 +379,7 @@ public sealed partial class MainViewModel
             {
                 await foreach (var e in stream.Events(ct).ConfigureAwait(false))
                 {
+                    if (!Current) return;
                     switch (e)
                     {
                         case SpeechStart start: run.Audio.BeginSpeech(start.SampleRate, start.Channels); break;
@@ -372,6 +393,7 @@ public sealed partial class MainViewModel
 
             private void Ended()
             {
+                if (!Current) return;
                 run.Audio.EndSpeech();
                 if (!run.Audio.IsPlaying) run.Session?.OnSpeechDone();
             }
@@ -379,10 +401,12 @@ public sealed partial class MainViewModel
             private async Task SpeakWholeAsync(string text, CancellationToken ct)
             {
                 var prepared = SpeechText.Prepare(text);
-                if (prepared.Problem != SpeechTextProblem.None) { run.Session?.OnSpeechDone(); return; }
+                if (prepared.Problem != SpeechTextProblem.None) { if (Current) run.Session?.OnSpeechDone(); return; }
                 var clip = await run.Backend.SpeakAsync(prepared.Text, run.Profile, ct).ConfigureAwait(false);
+                if (!Current) return;
                 run.Session?.OnSpeechPlaying(true);
                 await run.Backend.PlayClipAsync(clip, ct).ConfigureAwait(false);
+                if (!Current) return;                               // stopped while it played: the session has moved on
                 run.Session?.OnSpeechPlaying(false);
                 run.Session?.OnSpeechDone();
             }

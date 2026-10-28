@@ -16,12 +16,13 @@ public class Checkpoint47VoiceChatSessionTests
         public readonly List<string> Sent = new();
         public int Transcribes;
         public void Transcribe(byte[] wav) { Transcribes++; Calls.Add("transcribe"); }
-        public void Send(string text) { Sent.Add(text); Calls.Add("send:" + text); }
+        public void Send(int turn, string text) { lock (Calls) { Sent.Add(text); Calls.Add("send:" + text); } }
         public void CancelTurn() => Calls.Add("cancel");
-        public void SpeakStart() => Calls.Add("speak-start");
-        public void SpeakAppend(string text) => Calls.Add("append:" + text);
+        public Action? OnSpeakStart;
+        public void SpeakStart() { OnSpeakStart?.Invoke(); lock (Calls) Calls.Add("speak-start"); }
+        public void SpeakAppend(string text) { lock (Calls) Calls.Add("append:" + text); }
         public void SpeakFinish() => Calls.Add("finish");
-        public void SpeakStop() => Calls.Add("stop");
+        public void SpeakStop() { lock (Calls) Calls.Add("stop"); }
         public void SayFixed(string line) => Calls.Add("say:" + line);
     }
 
@@ -64,11 +65,11 @@ public class Checkpoint47VoiceChatSessionTests
         Assert.Equal(["What is the weather?"], host.Sent);
         Assert.Equal(VoiceChatPhase.Thinking, s.Phase);
 
-        s.OnReplyText("It is sunny. ");
+        s.OnReplyText(s.Turn, "It is sunny. ");
         s.OnSpeechPlaying(true);
         Assert.Equal(VoiceChatPhase.Speaking, s.Phase);
-        s.OnReplyText("It is sunny. Warm too.");
-        s.OnTurnEnded(failed: false, why: null);
+        s.OnReplyText(s.Turn, "It is sunny. Warm too.");
+        s.OnTurnEnded(s.Turn, failed: false, why: null);
         Assert.Equal(["transcribe", "send:What is the weather?", "speak-start", "append:It is sunny. ", "append:Warm too.", "finish"], host.Calls);
         s.OnSpeechDone();
         Assert.Equal(VoiceChatPhase.Listening, s.Phase);
@@ -119,8 +120,8 @@ public class Checkpoint47VoiceChatSessionTests
         var (s, host, mic) = Start();
         mic.Say();
         s.OnTranscribed("Weather?");
-        s.OnReplyText("It is sunny in Athens today with a light breeze.");
-        s.OnTurnEnded(false, null);
+        s.OnReplyText(s.Turn, "It is sunny in Athens today with a light breeze.");
+        s.OnTurnEnded(s.Turn, false, null);
         s.OnSpeechDone();
         mic.Say();
         s.OnTranscribed("it is sunny in athens today");
@@ -134,8 +135,8 @@ public class Checkpoint47VoiceChatSessionTests
         var (s, host, mic) = Start();
         mic.Say();
         s.OnTranscribed("Show the script");
-        s.OnReplyText("```sh\necho hi\n```");
-        s.OnTurnEnded(false, null);
+        s.OnReplyText(s.Turn, "```sh\necho hi\n```");
+        s.OnTurnEnded(s.Turn, false, null);
         Assert.Equal(VoiceChatPhase.Listening, s.Phase);
         Assert.DoesNotContain("speak-start", host.Calls);
     }
@@ -147,7 +148,7 @@ public class Checkpoint47VoiceChatSessionTests
         mic.Say();
         s.OnTranscribed("Tell me a long story");
         mic.Frames(0.01f, 600);                                            // the room while it thinks
-        s.OnReplyText("Once upon a time there was a fox. ");
+        s.OnReplyText(s.Turn, "Once upon a time there was a fox. ");
         s.OnSpeechPlaying(true);
         mic.Frames(0.03f, 1000);                                           // the voice, faintly back through the microphone
         mic.Frames(0.45f, 800);                                            // someone talks over it
@@ -181,7 +182,7 @@ public class Checkpoint47VoiceChatSessionTests
         var (s, host, mic) = Start();
         mic.Say();
         s.OnTranscribed("Delete the old logs");
-        s.OnReplyText("I will check first. ");
+        s.OnReplyText(s.Turn, "I will check first. ");
         s.OnSpeechPlaying(true);
         s.OnNeedsYou(true);
         Assert.Equal(VoiceChatPhase.WaitingForYou, s.Phase);
@@ -193,7 +194,7 @@ public class Checkpoint47VoiceChatSessionTests
         Assert.Single(host.Sent);
         s.OnNeedsYou(false);
         Assert.Equal(VoiceChatPhase.Thinking, s.Phase);
-        s.OnTurnEnded(false, null);
+        s.OnTurnEnded(s.Turn, false, null);
         Assert.Equal(VoiceChatPhase.Listening, s.Phase);
     }
 
@@ -231,12 +232,131 @@ public class Checkpoint47VoiceChatSessionTests
         var (s, host, mic) = Start();
         mic.Say();
         s.OnTranscribed("Write a poem");
-        s.OnReplyText("Roses are red. ");
+        s.OnReplyText(s.Turn, "Roses are red. ");
         s.End(null);
         Assert.Equal(VoiceChatPhase.Ended, s.Phase);
         Assert.Equal("stop", host.Calls.Last());
         Assert.DoesNotContain("cancel", host.Calls);
-        s.OnReplyText("Roses are red. Violets are blue.");                // late events change nothing
+        s.OnReplyText(s.Turn, "Roses are red. Violets are blue.");                // late events change nothing
         Assert.Equal("stop", host.Calls.Last());
+    }
+
+    [Fact]
+    public void A_transcript_of_only_noise_or_punctuation_is_not_sent_and_does_not_cut_in()
+    {
+        var (s, host, mic) = Start();
+        foreach (var noise in new[] { "...", "[BLANK_AUDIO]", "(music)", " . ", "♪" })
+        {
+            mic.Say();
+            s.OnTranscribed(noise);
+            if (s.Phase == VoiceChatPhase.Ended) break;
+        }
+        Assert.Empty(host.Sent);
+
+        var (t, host2, mic2) = Start();
+        mic2.Say();
+        t.OnTranscribed("Think about it");
+        mic2.Frames(0.01f, 600);
+        mic2.Frames(0.45f, 1400);                                         // someone (or something) talks over it
+        mic2.Frames(0.01f, 1500);
+        t.OnTranscribed("[BLANK_AUDIO]");                                 // ... but it was not words
+        Assert.DoesNotContain("cancel", host2.Calls);
+        Assert.Equal(["Think about it"], host2.Sent);
+        Assert.Equal(VoiceChatPhase.Thinking, t.Phase);
+    }
+
+    [Fact]
+    public void The_needs_you_line_is_stopped_when_answered_and_is_never_sent_if_the_microphone_hears_it()
+    {
+        var (s, host, mic) = Start();
+        mic.Say();
+        s.OnTranscribed("Delete the old logs");
+        s.OnNeedsYou(true);
+        var before = host.Calls.Count;
+        s.OnNeedsYou(false);
+        Assert.Contains("stop", host.Calls.Skip(before));                // the line does not run on over the next listen
+        s.OnTurnEnded(s.Turn, false, null);
+        Assert.Equal(VoiceChatPhase.Listening, s.Phase);
+        mic.Say();
+        s.OnTranscribed("Hermes needs you. Please check the screen.");
+        Assert.Equal(["Delete the old logs"], host.Sent);
+    }
+
+    [Fact]
+    public void A_failed_transcription_of_a_cut_in_goes_back_to_the_running_turn()
+    {
+        var (s, host, mic) = Start();
+        mic.Say();
+        s.OnTranscribed("Think about it");
+        mic.Frames(0.01f, 600);
+        mic.Frames(0.45f, 1400);
+        mic.Frames(0.01f, 1500);
+        Assert.Equal(VoiceChatPhase.Transcribing, s.Phase);
+        s.OnTranscribeFailed("The gateway could not turn what you said into text.");
+        Assert.Equal(VoiceChatPhase.Thinking, s.Phase);                   // still in the turn
+        s.OnNeedsYou(true);
+        Assert.Equal(VoiceChatPhase.WaitingForYou, s.Phase);              // so an approval still pauses it
+    }
+
+    [Fact]
+    public void Events_from_a_turn_that_was_cut_off_do_not_reach_the_next_turn()
+    {
+        var (s, host, mic) = Start();
+        mic.Say();
+        s.OnTranscribed("Tell me a long story");
+        var first = s.Turn;
+        mic.Frames(0.01f, 600);
+        mic.Frames(0.45f, 1400);
+        mic.Frames(0.01f, 1500);
+        s.OnTranscribed("Actually, what about tomorrow?");
+        Assert.NotEqual(first, s.Turn);
+        s.OnReplyText(first, "Once upon a time, ");                      // late text of the cancelled turn
+        s.OnTurnEnded(first, false, null);                                // and its late end
+        Assert.Equal(VoiceChatPhase.Thinking, s.Phase);
+        Assert.DoesNotContain("speak-start", host.Calls);
+    }
+
+    [Fact]
+    public void After_a_false_trip_the_rest_of_the_reply_is_spoken()
+    {
+        var (s, host, mic) = Start();
+        mic.Say();
+        s.OnTranscribed("Tell me a story");
+        mic.Frames(0.01f, 600);
+        s.OnReplyText(s.Turn, "Once upon a time. ");
+        s.OnSpeechPlaying(true);
+        mic.Frames(0.03f, 1000);
+        mic.Frames(0.6f, 600);                                            // a knock loud enough to trip it, then nobody
+        mic.Frames(0.03f, 1200);
+        Assert.Contains("stop", host.Calls);
+        s.OnReplyText(s.Turn, "Once upon a time. There was a fox. ");
+        Assert.Equal("speak-start", host.Calls.Last(c => c.StartsWith("speak")));
+        Assert.Equal("append:There was a fox. ", host.Calls.Last());
+    }
+
+    [Fact]
+    public void Calls_to_the_app_run_in_the_order_the_chat_decided_them_even_across_threads()
+    {
+        var (s, host, mic) = Start();
+        mic.Say();
+        s.OnTranscribed("Tell me a story");
+        mic.Frames(0.01f, 600);
+        var inSpeakStart = new ManualResetEventSlim();
+        var release = new ManualResetEventSlim();
+        host.OnSpeakStart = () => { inSpeakStart.Set(); release.Wait(5000); };
+        var writer = new Thread(() => s.OnReplyText(s.Turn, "Once upon a time. "));
+        writer.Start();
+        Assert.True(inSpeakStart.Wait(5000));                             // the app is busy starting the voice ...
+        s.OnSpeechPlaying(true);
+        mic.Frames(0.03f, 1000);
+        mic.Frames(0.45f, 800);                                           // ... while someone cuts in on another thread
+        release.Set();
+        writer.Join();
+        lock (host.Calls)
+        {
+            var start = host.Calls.IndexOf("speak-start");
+            var stop = host.Calls.LastIndexOf("stop");
+            Assert.True(start >= 0 && stop > start, string.Join(", ", host.Calls));
+        }
     }
 }

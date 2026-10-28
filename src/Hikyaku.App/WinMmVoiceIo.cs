@@ -28,6 +28,7 @@ public sealed class WinMmVoiceIo : IVoiceChatAudio
     private IntPtr _waveIn, _waveOut;
     private (int Rate, int Channels) _outFormat;
     private long _micSamples;
+    private int _nextMic;
     private bool _ending, _playing;
     private volatile bool _disposed;
 
@@ -136,9 +137,11 @@ public sealed class WinMmVoiceIo : IVoiceChatAudio
 
     private void ReadMic()
     {
-        foreach (var header in _micHeaders)
+        // In the order the driver filled them: the next one due first, stopping at the first not yet done.
+        var done = _micHeaders.Select(h => (Marshal.ReadInt32(h, FlagsOffset) & WhdrDone) != 0).ToArray();
+        foreach (var index in MicBufferRing.TakeDone(ref _nextMic, done))
         {
-            if ((Marshal.ReadInt32(header, FlagsOffset) & WhdrDone) == 0) continue;
+            var header = _micHeaders[index];
             var bytes = Marshal.ReadInt32(header, RecordedOffset);
             if (bytes > 0)
             {
@@ -268,4 +271,22 @@ public sealed class WinMmVoiceIo : IVoiceChatAudio
     [DllImport("winmm.dll")] private static extern int waveOutWrite(IntPtr hwo, IntPtr pwh, int cbwh);
     [DllImport("winmm.dll")] private static extern int waveOutReset(IntPtr hwo);
     [DllImport("winmm.dll")] private static extern int waveOutClose(IntPtr hwo);
+}
+
+/// <summary>
+/// The microphone's buffers are queued round-robin; after a stall several are done at once, and they must be read from the one
+/// due next, in turn, so the sound stays in order (0.6.0 review: reading them in list order scrambled a cut-in's first words).
+/// </summary>
+public static class MicBufferRing
+{
+    public static int[] TakeDone(ref int next, bool[] done)
+    {
+        var taken = new List<int>();
+        while (taken.Count < done.Length && done[next])
+        {
+            taken.Add(next);
+            next = (next + 1) % done.Length;
+        }
+        return taken.ToArray();
+    }
 }

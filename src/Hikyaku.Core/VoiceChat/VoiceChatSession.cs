@@ -10,8 +10,11 @@ public interface IVoiceChatHost
 {
     /// <summary>Transcribe a WAV (16 kHz mono 16-bit); answer with <see cref="VoiceChatSession.OnTranscribed"/> or <see cref="VoiceChatSession.OnTranscribeFailed"/>.</summary>
     void Transcribe(byte[] wav);
-    /// <summary>Send this as an ordinary message of the open chat; its reply comes back as <see cref="VoiceChatSession.OnReplyText"/>.</summary>
-    void Send(string text);
+    /// <summary>
+    /// Send this as an ordinary message of the open chat; its reply comes back as <see cref="VoiceChatSession.OnReplyText"/> and
+    /// <see cref="VoiceChatSession.OnTurnEnded"/> with the same <paramref name="turn"/>, so a cut-off turn's late events are told apart.
+    /// </summary>
+    void Send(int turn, string text);
     /// <summary>Stop the reply being written (someone talked over it).</summary>
     void CancelTurn();
     void SpeakStart();
@@ -28,7 +31,8 @@ public interface IVoiceChatHost
 /// and sends what was said; talking while it thinks stops that turn only once real words are heard. A stop phrase ends the
 /// chat and is never sent; so does a third listen in a row that hears nobody, or a second failure in a row. While Hermes waits
 /// for an approval or an answer the voice stops, says so, and nothing heard is taken as an answer. Ending the chat never stops
-/// the text turn. Inputs may come from any thread; host calls are made outside the session's lock.
+/// the text turn. Inputs may come from any thread; host calls are made outside the session's lock, one at a time, in the
+/// order the session decided them (a call decided later on another thread never overtakes an earlier one).
 /// </summary>
 public sealed class VoiceChatSession(IVoiceChatHost host, VoiceChatSettings settings, string? agentName)
 {
@@ -45,6 +49,9 @@ public sealed class VoiceChatSession(IVoiceChatHost host, VoiceChatSettings sett
 
     private readonly object _gate = new();
     private readonly List<Action> _pending = new();
+    private readonly Queue<Action> _outbox = new();
+    private bool _draining;
+    private int _turn;
     private readonly List<short> _recording = new();
     private readonly Queue<short[]> _preRoll = new();
     private int _preRollSamples;
@@ -64,6 +71,8 @@ public sealed class VoiceChatSession(IVoiceChatHost host, VoiceChatSettings sett
     public string? Problem { get; private set; }
     /// <summary>The microphone's level now (0..1), for the meter.</summary>
     public float Level { get; private set; }
+    /// <summary>The number of the turn sent last (1 for the first); events for another turn are ignored.</summary>
+    public int Turn { get { lock (_gate) return _turn; } }
     public event Action? Changed;
 
     public void Start() => Run(() =>
@@ -85,6 +94,7 @@ public sealed class VoiceChatSession(IVoiceChatHost host, VoiceChatSettings sett
     {
         if (Phase != VoiceChatPhase.Transcribing) return;
         var said = text.Trim();
+        if (IsNoise(said)) said = "";                                    // "...", "[BLANK_AUDIO]", "(music)": not words
         if (_cutIn)
         {
             _cutIn = false;
@@ -104,23 +114,25 @@ public sealed class VoiceChatSession(IVoiceChatHost host, VoiceChatSettings sett
     public void OnTranscribeFailed(string why) => Run(() =>
     {
         if (Phase != VoiceChatPhase.Transcribing) return;
+        var wasCutIn = _cutIn;
         _cutIn = false;
         Problem = why;
         if (++_failures >= MaxFailures) { EndLocked(why); return; }
-        StartListening();
+        if (wasCutIn) Resume();                                          // the turn it tried to cut into is still running
+        else StartListening();
     });
 
-    public void OnReplyText(string full) => Run(() =>
+    public void OnReplyText(int turn, string full) => Run(() =>
     {
-        if (!InTurn()) return;
+        if (turn != _turn || !InTurn()) return;
         _replyFull = full;
         if (_waiting || _speechStopped || _hearing) return;
         SpeakNew(complete: false);
     });
 
-    public void OnTurnEnded(bool failed, string? why) => Run(() =>
+    public void OnTurnEnded(int turn, bool failed, string? why) => Run(() =>
     {
-        if (!InTurn() && Phase != VoiceChatPhase.Transcribing) return;
+        if (turn != _turn || !InTurn() && Phase != VoiceChatPhase.Transcribing) return;
         _turnEnded = true;
         if (failed)
         {
@@ -163,6 +175,7 @@ public sealed class VoiceChatSession(IVoiceChatHost host, VoiceChatSettings sett
         else if (!waiting && _waiting)
         {
             _waiting = false;
+            _pending.Add(host.SpeakStop);                                // the "check the screen" line must not run on
             if (_turnEnded) StartListening();
             else { Phase = VoiceChatPhase.Thinking; NewBargeIn(); }
         }
@@ -229,7 +242,8 @@ public sealed class VoiceChatSession(IVoiceChatHost host, VoiceChatSettings sett
         _sent = _replyFull = "";
         _speechOpen = _speechStopped = _turnEnded = _hearing = _playing = false;
         NewBargeIn();
-        _pending.Add(() => host.Send(said));
+        var turn = ++_turn;
+        _pending.Add(() => host.Send(turn, said));
     }
 
     /// <summary>Back to where the turn was after a cut-in that was nobody (an echo, a knock, nothing said).</summary>
@@ -237,6 +251,7 @@ public sealed class VoiceChatSession(IVoiceChatHost host, VoiceChatSettings sett
     {
         if (_turnEnded && !_speechOpen) { StartListening(); return; }
         Phase = _speechOpen && _playing ? VoiceChatPhase.Speaking : VoiceChatPhase.Thinking;
+        _speechStopped = false;                                          // a false trip: the rest of the reply is spoken
         NewBargeIn();
     }
 
@@ -292,19 +307,44 @@ public sealed class VoiceChatSession(IVoiceChatHost host, VoiceChatSettings sett
     private bool InTurn() => Phase is VoiceChatPhase.Thinking or VoiceChatPhase.Speaking or VoiceChatPhase.WaitingForYou
         || Phase == VoiceChatPhase.Transcribing && _cutIn;
 
-    private bool IsEcho(string said) => _lastSpoken.Length > 0 && TtsEcho.IsEcho(said, _lastSpoken);
+    private bool IsEcho(string said) =>
+        _lastSpoken.Length > 0 && TtsEcho.IsEcho(said, _lastSpoken) || TtsEcho.IsEcho(said, NeedsYouLine);
 
-    /// <summary>Runs one input under the lock, then the host calls it produced and the change notice, outside it.</summary>
+    /// <summary>What speech-to-text makes of a cough or a door: no letters or digits once bracketed tags are taken out.</summary>
+    private static bool IsNoise(string said) =>
+        !System.Text.RegularExpressions.Regex.Replace(said, @"\[[^\]]*\]|\([^)]*\)", "").Any(char.IsLetterOrDigit);
+
+    /// <summary>
+    /// Runs one input under the lock and queues the host calls it produced; whichever thread finds the queue idle runs it, in
+    /// order, outside the lock (a host call may itself report back). Then the change notice.
+    /// </summary>
     private void Run(Action input)
     {
-        Action[] calls;
+        bool drain;
         lock (_gate)
         {
             input();
-            calls = _pending.ToArray();
+            foreach (var call in _pending) _outbox.Enqueue(call);
             _pending.Clear();
+            drain = !_draining && _outbox.Count > 0;
+            if (drain) _draining = true;
         }
-        foreach (var call in calls) call();
+        if (drain) Drain();
         Changed?.Invoke();
+    }
+
+    private void Drain()
+    {
+        while (true)
+        {
+            Action next;
+            lock (_gate)
+            {
+                if (_outbox.Count == 0) { _draining = false; return; }
+                next = _outbox.Dequeue();
+            }
+            try { next(); }
+            catch (Exception) { /* a failing host call must not stop the ones after it */ }
+        }
     }
 }
