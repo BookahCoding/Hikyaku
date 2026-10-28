@@ -1274,7 +1274,9 @@ public sealed partial class MainViewModel : Observable
         reply.IsLive = true;                                                            // its activity line shows until the turn ends
         _turn = turn;
         var coalescer = new TokenCoalescer(s => turn.Reply.Append(s), TimeSpan.FromMilliseconds(50));
-        turn.BeforeSwap = coalescer.Flush;
+        // Reasoning used to repaint on every token. The same 50 ms batch as the answer keeps a long "thinking" stream responsive.
+        var reasoning = new TokenCoalescer(s => turn.Reply.AppendReasoning(s, DateTimeOffset.UtcNow), TimeSpan.FromMilliseconds(50));
+        turn.BeforeSwap = () => { coalescer.Flush(); reasoning.Flush(); };
         var clean = false;       // a StreamCompleted with no error: only then may a queued prompt follow
         var sawError = false;
         try
@@ -1351,16 +1353,23 @@ public sealed partial class MainViewModel : Observable
                             break;
                         case TokenDelta d:
                             convo.Delivery = PromptResendPolicy.AfterFirstToken(convo.Delivery);
-                            turn.Reply.EndReasoning(DateTimeOffset.UtcNow);                // the answer started: thinking is over
+                            reasoning.Flush();                                              // the answer started: show the thinking, then close it
+                            turn.Reply.EndReasoning(DateTimeOffset.UtcNow);
                             coalescer.Append(d.Text);
                             break;
                         case ToolActivity t: turn.Reply.ToolSummary = t.Summary; break;
                         // Stage 44: what the agent is doing, as it happens (BookahHermes ChatReducer).
-                        case ReasoningDelta rd: turn.Reply.AppendReasoning(rd.Text, DateTimeOffset.UtcNow); break;
-                        case FinalReasoning fr: if (!turn.Reply.HasReasoning) turn.Reply.SetStoredReasoning(fr.Text); break;
+                        case ReasoningDelta rd: reasoning.Append(rd.Text); break;
+                        case FinalReasoning fr:
+                            reasoning.Flush();
+                            if (!turn.Reply.HasReasoning) turn.Reply.SetStoredReasoning(fr.Text);
+                            break;
                         case ActivityLabel al: turn.Reply.SetActivityLabel(al.Text); break;
                         case StatusLine sl: turn.Reply.SetStatus(sl.Text); break;
-                        case ToolStarted ts: turn.Reply.StartTool(ts, DateTimeOffset.UtcNow); break;
+                        case ToolStarted ts:
+                            reasoning.Flush();                                              // a tool means thinking stopped; don't leave the last words buffered
+                            turn.Reply.StartTool(ts, DateTimeOffset.UtcNow);
+                            break;
                         case ToolFinished tf:
                             // A steer may have moved the reply on; the step finishes wherever it started.
                             (convo.History.LastOrDefault(m => m.Tools.Any(x => x.Id == tf.Id)) ?? turn.Reply).FinishTool(tf);
@@ -1456,6 +1465,7 @@ public sealed partial class MainViewModel : Observable
         finally
         {
             coalescer.Flush();
+            reasoning.Flush();
             reply.FinishLive(DateTimeOffset.UtcNow);
             turn.Reply.FinishLive(DateTimeOffset.UtcNow);
             _busy = false; _cts.Dispose(); _cts = null;
