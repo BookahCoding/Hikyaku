@@ -170,3 +170,51 @@ public sealed class JobInboxPrefs(IPreferenceStore store)
     private Task SaveAsync(CancellationToken ct) =>
         store.SaveAsync(JsonSerializer.Serialize(new { hidden = _hidden.OrderBy(k => k, StringComparer.Ordinal) }), ct);
 }
+
+/// <summary>
+/// Which Inbox results this PC has read (0.7.0): result keys by gateway, so the same job ids on another gateway are not
+/// marked. Only ids are kept, never a result's text; the newest <see cref="Max"/> per gateway.
+/// </summary>
+public sealed class InboxReadStore(IPreferenceStore store)
+{
+    public const int Max = 5000;
+    private readonly Dictionary<string, List<string>> _read = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, HashSet<string>> _lookup = new(StringComparer.Ordinal);
+
+    public async Task LoadAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var text = await store.LoadAsync(ct).ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(text)) return;
+            using var doc = JsonDocument.Parse(text);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object) return;
+            foreach (var gateway in doc.RootElement.EnumerateObject())
+            {
+                if (gateway.Value.ValueKind != JsonValueKind.Array) continue;
+                var keys = gateway.Value.EnumerateArray().Where(e => e.ValueKind == JsonValueKind.String).Select(e => e.GetString()!).ToList();
+                _read[gateway.Name] = keys;
+                _lookup[gateway.Name] = new HashSet<string>(keys, StringComparer.Ordinal);
+            }
+        }
+        catch (JsonException) { /* an unreadable file marks nothing read */ }
+    }
+
+    public bool IsRead(string gatewayId, string runKey) => _lookup.TryGetValue(gatewayId, out var keys) && keys.Contains(runKey);
+
+    public Task MarkReadAsync(string gatewayId, IEnumerable<string> runKeys, CancellationToken ct = default)
+    {
+        if (!_read.TryGetValue(gatewayId, out var list)) { _read[gatewayId] = list = new List<string>(); _lookup[gatewayId] = new HashSet<string>(StringComparer.Ordinal); }
+        var lookup = _lookup[gatewayId];
+        var added = false;
+        foreach (var key in runKeys)
+            if (lookup.Add(key)) { list.Add(key); added = true; }
+        if (!added) return Task.CompletedTask;
+        if (list.Count > Max)
+        {
+            foreach (var old in list.Take(list.Count - Max)) lookup.Remove(old);
+            list.RemoveRange(0, list.Count - Max);                // the oldest marks go first
+        }
+        return store.SaveAsync(JsonSerializer.Serialize(_read), ct);
+    }
+}

@@ -141,6 +141,43 @@ public class Checkpoint49InboxResultsTests
         Assert.True(missing.PluginPresent);                                    // the plugin is there; this run's file is not
     }
 
+    // ---- InboxReadStore ----
+
+    private sealed class MemPrefs : IPreferenceStore
+    {
+        public string? Content;
+        public Task<string?> LoadAsync(CancellationToken ct = default) => Task.FromResult(Content);
+        public Task SaveAsync(string content, CancellationToken ct = default) { Content = content; return Task.CompletedTask; }
+    }
+
+    [Fact]
+    public async Task Read_marks_survive_a_reload_and_stay_with_their_gateway()
+    {
+        var file = new MemPrefs();
+        var reads = new InboxReadStore(file);
+        await reads.LoadAsync();
+        await reads.MarkReadAsync("home", ["default/j1/s1", "default/j1/s2"]);
+        var again = new InboxReadStore(file);
+        await again.LoadAsync();
+        Assert.True(again.IsRead("home", "default/j1/s1"));
+        Assert.False(again.IsRead("work", "default/j1/s1"));                 // the same job ids on another gateway
+        Assert.False(again.IsRead("home", "default/j1/s3"));
+    }
+
+    [Fact]
+    public async Task Only_the_newest_marks_are_kept_and_a_corrupt_file_reads_as_none()
+    {
+        var file = new MemPrefs();
+        var reads = new InboxReadStore(file);
+        await reads.MarkReadAsync("home", Enumerable.Range(0, InboxReadStore.Max + 10).Select(i => "run" + i));
+        Assert.False(reads.IsRead("home", "run0"));
+        Assert.True(reads.IsRead("home", "run" + (InboxReadStore.Max + 9)));
+
+        var corrupt = new InboxReadStore(new MemPrefs { Content = "{not json" });
+        await corrupt.LoadAsync();
+        Assert.False(corrupt.IsRead("home", "run1"));
+    }
+
     [Fact]
     public void An_excerpt_is_the_first_few_lines_cut_with_an_ellipsis()
     {
