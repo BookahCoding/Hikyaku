@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Hikyaku.ReleaseTool</RootNamespace>
+    <AssemblyName>Hikyaku.ReleaseTool</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Hikyaku.Core\Hikyaku.Core.csproj" />
+  </ItemGroup>
+</Project>

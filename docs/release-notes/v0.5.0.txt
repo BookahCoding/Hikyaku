@@ -1,0 +1,25 @@
+Hikyaku 0.5.0 - first public test release
+
+Hikyaku is a native Windows client for a Hermes Agent gateway you already run. Download Hikyaku-Setup-0.5.0.exe and run it: it installs for your Windows account only (no administrator rights) and adds Hikyaku to the Start menu. No .NET installation is needed. Updates install from inside the app.
+
+What is in it
+- Chats with streaming replies, maths, attachments, voice dictation, read aloud, edit, regenerate, branch and find in chat. Steer or queue a message while a reply is running. A failed reply says what happened, and nothing is ever resent automatically.
+- Replies show what the agent did, Claude-style: its reasoning, each tool step with its result, its plan and a live activity line (Advanced). Simple view keeps a plain activity line. A warning appears in both views when a tool's output is flagged as risky.
+- Inbox with the results of your scheduled jobs, in folders like the Android app (open one as a chat, hide the ones you don't need), and Needs you for approvals and questions, with optional Windows notifications.
+- A profile switcher for talking to your main agent or your bots, and slash commands (/model, /reasoning, /fast, /yolo, /new, /stop, /branch, /btw, /bg) with suggestions as you type.
+- Simple view for everyday chatting and Advanced view for managing Hermes: scheduled jobs, skills, toolsets, MCP servers, the skills hub, a settings and config.yaml editor, insights, hosted rooms, artifacts, the memory graph and local projects.
+- Six Hokusai-inspired themes in light and dark, three text sizes and keyboard shortcuts (Ctrl+K for the command palette, Ctrl+/ for the full list).
+
+Updates
+- When Hikyaku starts it asks GitHub once whether a newer version exists (you can turn this off in Settings, Updates). If there is one, an "Update to x.y.z" button appears at the top. Nothing is downloaded until you click, and a download is installed only after its signature is verified against the key built into the app.
+
+Security
+- Passwords and tokens are stored encrypted for your Windows account only. No telemetry.
+- Changes that cannot be undone, or that widen what the agent can do, are confirmed in words first.
+
+Known limits
+- This is a test release: it has been used on one real gateway, and the full live checklist has not been run. Please report anything that behaves oddly.
+- Clicking a Windows notification does not open the chat yet. Pop-out windows, a gateway-side message queue and live voice conversation are not included yet.
+- The installer and the app are not Authenticode-signed, so Windows SmartScreen may ask before the first start: choose More info, then Run anyway.
+
+Report problems at https://github.com/BookahCoding/Hikyaku/issues

@@ -1,0 +1,42 @@
+# Builds and tests every push and pull request. Uses no secrets and publishes nothing: release packages are built and
+# signed by hand by the maintainer (scripts/package.ps1), never in CI, and the signing key never enters GitHub.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # the secret scan also checks every commit message
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Build (warnings are errors)
+        run: dotnet build Hikyaku.sln -c Release -nologo
+
+      - name: Core tests
+        run: dotnet test tests/Hikyaku.Tests -c Release --no-build -nologo
+
+      - name: WPF tests
+        run: dotnet test tests/Hikyaku.App.Tests -c Release --no-build -nologo
+
+      - name: Secret and personal-data scan
+        shell: powershell
+        run: ./scripts/check-secrets.ps1

@@ -1,0 +1,42 @@
+﻿PASS: exists index.html
+PASS: exists assets\styles.css
+PASS: exists assets\app.js
+PASS: exists README.md
+PASS: no external src/href protocol-relative or http(s) assets in index.html
+PASS: no CDN host hints in html/css/js
+PASS: asset resolves: assets/styles.css
+PASS: link resolves: README.md
+PASS: asset resolves: assets/app.js
+PASS: view welcome
+PASS: view chat
+PASS: view bots
+PASS: view inbox
+PASS: view project
+PASS: view settings
+PASS: scenario chip grant
+PASS: scenario chip diff
+PASS: scenario chip checkpoint
+PASS: scenario chip push
+PASS: scenario chip worktree
+PASS: scenario chip secret
+PASS: scenario chip needsyou
+PASS: scenario chip disconnected
+PASS: scenario chip loading
+PASS: scenario chip empty
+PASS: scenario chip error
+PASS: scenario chip profilehide
+PASS: synthetic labelling present
+PASS: Advanced toggle + reduced-motion CSS
+PASS: checkpoint and push are separate controls
+PASS: no network APIs in app.js
+PASS: control id advancedToggle
+PASS: control id btnGrantFolder
+PASS: control id btnCheckpoint
+PASS: control id btnPush
+PASS: control id btnWorktree
+PASS: control id confirmTerminal
+PASS: control id needsBadge
+PASS: control id terminalDrawer
+PASS: control id panelHost
+---
+RESULT: ALL PASS

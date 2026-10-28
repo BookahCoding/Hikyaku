@@ -1,0 +1,54 @@
+<Window x:Class="Hikyaku.App.CronEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Scheduled job" Width="540" Height="640" Background="{DynamicResource Brush.Surface}"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+  <DockPanel Margin="20">
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+      <Button x:Name="SaveButton" Content="Save" Click="Save_Click" Style="{StaticResource AccentButton}"
+              AutomationProperties.Name="Save scheduled job"/>
+      <Button Content="Cancel" IsCancel="True" Margin="8,0,0,0" AutomationProperties.Name="Cancel"/>
+    </StackPanel>
+    <TextBlock x:Name="ProblemText" DockPanel.Dock="Bottom" Foreground="{DynamicResource Brush.Warning}" TextWrapping="Wrap"
+               Margin="0,8,0,0" AutomationProperties.Name="Problem"/>
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+      <StackPanel>
+        <TextBlock Text="Name (optional)"/>
+        <TextBox x:Name="NameBox" MaxLength="200" AutomationProperties.Name="Job name"/>
+
+        <TextBlock Margin="0,10,0,2" Text="Profile"/>
+        <ComboBox x:Name="ProfileBox" AutomationProperties.Name="Profile"/>
+
+        <TextBlock Margin="0,10,0,2" Text="What should it do?"/>
+        <TextBox x:Name="PromptBox" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="110" MaxHeight="200" MaxLength="20000"
+                 VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Prompt"/>
+
+        <TextBlock Margin="0,10,0,2" Text="When"/>
+        <ComboBox x:Name="KindBox" SelectionChanged="Kind_Changed" AutomationProperties.Name="Schedule type"/>
+        <StackPanel x:Name="AmountRow" Orientation="Horizontal" Margin="0,6,0,0">
+          <TextBlock Text="Every / in" VerticalAlignment="Center" Margin="0,0,8,0"/>
+          <TextBox x:Name="AmountBox" Width="70" TextChanged="Field_Changed" AutomationProperties.Name="Amount"/>
+          <TextBlock x:Name="UnitText" VerticalAlignment="Center" Margin="8,0,0,0"/>
+        </StackPanel>
+        <StackPanel x:Name="TimeRow" Orientation="Horizontal" Margin="0,6,0,0">
+          <ComboBox x:Name="DayBox" Width="130" SelectionChanged="Field_Changed" AutomationProperties.Name="Day of week"/>
+          <TextBlock Text="at" VerticalAlignment="Center" Margin="8,0"/>
+          <ComboBox x:Name="HourBox" Width="70" SelectionChanged="Field_Changed" AutomationProperties.Name="Hour"/>
+          <TextBlock Text=":" VerticalAlignment="Center" Margin="4,0"/>
+          <ComboBox x:Name="MinuteBox" Width="70" SelectionChanged="Field_Changed" AutomationProperties.Name="Minute"/>
+        </StackPanel>
+        <StackPanel x:Name="AdvancedRow" Margin="0,6,0,0">
+          <TextBox x:Name="AdvancedBox" TextChanged="Field_Changed" MaxLength="200" AutomationProperties.Name="Raw schedule"/>
+          <TextBlock Foreground="{DynamicResource Brush.TextMuted}" TextWrapping="Wrap" Margin="0,4,0,0"
+                     Text="The gateway's own schedule text: “every 2h”, “weekdays at 9am”, a cron expression like 0 9 * * *, or an ISO time. The gateway checks it when you save."/>
+        </StackPanel>
+        <TextBlock x:Name="PreviewText" Margin="0,8,0,0" Foreground="{DynamicResource Brush.TextMuted}" TextWrapping="Wrap"
+                   AutomationProperties.Name="Schedule preview"/>
+
+        <TextBlock Margin="0,12,0,2" Text="Send the result to"/>
+        <ComboBox x:Name="DeliverBox" DisplayMemberPath="Name" AutomationProperties.Name="Delivery target"/>
+        <TextBlock x:Name="DeliverNote" Foreground="{DynamicResource Brush.TextMuted}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
+</Window>

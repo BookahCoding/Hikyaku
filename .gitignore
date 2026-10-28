@@ -1,0 +1,24 @@
+# build / caches
+bin/
+obj/
+artifacts/
+.vs/
+*.user
+node_modules/
+TestResults/
+# secrets / local config
+.env
+.env.*
+!.env.example
+*.local.json
+hikyaku.local.*
+*.pfx
+*.snk
+*.key
+*.pem
+# logs and run artefacts
+*.log
+logs/
+outputs/
+run/
+*.dmp

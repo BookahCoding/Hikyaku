@@ -1,0 +1,1966 @@
+<Window x:Class="Hikyaku.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Hikyaku.App"
+        Title="Hikyaku" Icon="pack://application:,,,/Assets/Hikyaku.ico" Width="1180" Height="760" MinWidth="720" MinHeight="520"
+        Background="{DynamicResource Brush.Bg}"
+        PreviewKeyDown="Window_PreviewKeyDown" SizeChanged="Window_SizeChanged">
+  <Grid x:Name="ShellRoot">
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition x:Name="SidebarColumn" Width="260"/>
+      <ColumnDefinition Width="*"/>
+    </Grid.ColumnDefinitions>
+
+    <!-- Sidebar: single aligned icon+label rows, collapsible history, More, account -->
+    <Border x:Name="SidebarPanel" Grid.Column="0" Background="{DynamicResource Brush.SurfaceSidebar}"
+            BorderBrush="{DynamicResource Brush.Border}" BorderThickness="0,0,1,0"
+            AutomationProperties.Name="Sidebar">
+      <DockPanel>
+        <DockPanel DockPanel.Dock="Top" Margin="12,12,12,8">
+          <Button x:Name="SidebarToggle" DockPanel.Dock="Right"
+                  Click="SidebarToggle_Click" ToolTip="Hide the sidebar (Ctrl+B)"
+                  AutomationProperties.Name="Toggle sidebar" Style="{StaticResource IconButton}">
+            <TextBlock Style="{StaticResource IconGlyph}" Text="&#xE8A0;" FontSize="16"/>
+          </Button>
+          <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+            <!-- The app mark (same as the Android app's icon): washi-paper H on vermilion, drawn as vectors so it stays sharp -->
+            <Border Width="22" Height="22" CornerRadius="6" Background="#A63F2D" Margin="0,0,9,0">
+              <Viewbox Margin="4">
+                <Path Fill="#F4EDD9" Data="M38.5,30a5.5,5.5 0,0 1,5.5 5.5v37a5.5,5.5 0,0 1,-5.5 5.5a5.5,5.5 0,0 1,-5.5 -5.5v-37a5.5,5.5 0,0 1,5.5 -5.5z M69.5,30a5.5,5.5 0,0 1,5.5 5.5v37a5.5,5.5 0,0 1,-5.5 5.5a5.5,5.5 0,0 1,-5.5 -5.5v-37a5.5,5.5 0,0 1,5.5 -5.5z M38,43h18a5,5 0,0 1,5 5a5,5 0,0 1,-5 5h-18a5,5 0,0 1,-5 -5a5,5 0,0 1,5 -5z M52,55h18a5,5 0,0 1,5 5a5,5 0,0 1,-5 5h-18a5,5 0,0 1,-5 -5a5,5 0,0 1,5 -5z"/>
+              </Viewbox>
+            </Border>
+            <TextBlock x:Name="BrandTitle" Text="Hikyaku" FontSize="{StaticResource Size.Heading}" FontWeight="SemiBold"
+                       Foreground="{DynamicResource Brush.Text}" VerticalAlignment="Center"/>
+          </StackPanel>
+        </DockPanel>
+
+        <StackPanel DockPanel.Dock="Top" Margin="8,0,8,4">
+          <ComboBox x:Name="ProfileSwitcher" Margin="4,0,4,8" ItemsSource="{Binding ProfileChoices}" DisplayMemberPath="Label"
+                    SelectedItem="{Binding SelectedProfileChoice, Mode=TwoWay}" Visibility="{Binding ProfileSwitcherVisibility}"
+                    ToolTip="Who you are talking to. New chat, the chat list and every page use this profile."
+                    AutomationProperties.Name="Profile"/>
+          <Button x:Name="NewChatBtn" Click="NewChat_Click" Style="{StaticResource AccentButton}" ToolTip="New chat (Ctrl+N)"
+                  Margin="4,0,4,8" HorizontalAlignment="Stretch" AutomationProperties.Name="New chat">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+              <TextBlock Text="&#xE710;" FontFamily="{StaticResource Font.Icons}" FontSize="13" Margin="0,0,8,0" VerticalAlignment="Center" Foreground="{DynamicResource Brush.OnAccent}"/>
+              <TextBlock Text="New chat" Foreground="{DynamicResource Brush.OnAccent}" VerticalAlignment="Center"/>
+            </StackPanel>
+          </Button>
+        </StackPanel>
+
+        <StackPanel DockPanel.Dock="Bottom" Margin="8,8,8,12">
+          <TextBlock x:Name="AccountLabel" Text="Account" Foreground="{DynamicResource Brush.TextMuted}"
+                     FontSize="{StaticResource Size.Caption}" Margin="10,0,0,4"/>
+          <Button x:Name="OpenSettings" Click="Settings_Click" Style="{StaticResource NavRowButton}"
+                  AutomationProperties.Name="Settings" ToolTip="Settings (Ctrl+,)">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Text="&#xE713;" Style="{StaticResource NavGlyph}"/>
+              <TextBlock Text="Settings"/>
+            </StackPanel>
+          </Button>
+        </StackPanel>
+
+        <!-- Everything below New chat scrolls as one: the pages, then the chats (as in Claude) -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                      Style="{StaticResource QuietScrollViewer}">
+          <StackPanel Margin="8,0,8,8">
+          <Button x:Name="NavChats" Click="NavChats_Click" Style="{StaticResource NavRowButton}"
+                  AutomationProperties.Name="Chats">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Text="&#xE8BD;" Style="{StaticResource NavGlyph}"/>
+              <TextBlock Text="Chats"/>
+            </StackPanel>
+          </Button>
+          <Button x:Name="NavBots" Visibility="{Binding BotsNavVisibility}" Click="NavBots_Click" Style="{StaticResource NavRowButton}"
+                  ToolTip="Bot Mode roster and Desktop rooms (selected profiles only)."
+                  AutomationProperties.Name="Bots">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Text="&#xE99A;" Style="{StaticResource NavGlyph}"/>
+              <TextBlock Text="{Binding BotsNavLabel}"/>
+            </StackPanel>
+          </Button>
+          <Button x:Name="NavInbox" Command="{Binding ShowInboxCommand}" Style="{StaticResource NavRowButton}"
+                  ToolTip="Followed cron outputs (herald-push). Separate from Needs you."
+                  AutomationProperties.Name="Inbox"
+                  Click="NavSide_Click">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Text="&#xE715;" Style="{StaticResource NavGlyph}"/>
+              <TextBlock Text="Inbox"/>
+            </StackPanel>
+          </Button>
+          <Button x:Name="NavScheduled" Command="{Binding ShowScheduledCommand}" Style="{StaticResource NavRowButton}"
+                  Visibility="{Binding ScheduledNavVisibility}"
+                  ToolTip="Scheduled jobs (cron): pause, run now, edit, delete."
+                  AutomationProperties.Name="Scheduled jobs"
+                  Click="NavSide_Click">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Text="&#xE823;" Style="{StaticResource NavGlyph}"/>
+              <TextBlock Text="Scheduled"/>
+            </StackPanel>
+          </Button>
+          <Button x:Name="NavCapabilities" Visibility="{Binding CapabilitiesNavVisibility}" Command="{Binding ShowCapabilitiesCommand}" Style="{StaticResource NavRowButton}"
+                  ToolTip="Skills, toolsets and MCP servers for the active profile."
+                  AutomationProperties.Name="Capabilities"
+                  Click="NavSide_Click">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Text="&#xEA86;" Style="{StaticResource NavGlyph}"/>
+              <TextBlock Text="Capabilities"/>
+            </StackPanel>
+          </Button>
+          <Button x:Name="NavRooms" Visibility="{Binding RoomsNavVisibility}" Command="{Binding ShowRoomsCommand}" Style="{StaticResource NavRowButton}"
+                  ToolTip="Group chats the gateway runs, with several bots."
+                  AutomationProperties.Name="Rooms"
+                  Click="NavSide_Click">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Text="&#xE716;" Style="{StaticResource NavGlyph}"/>
+              <TextBlock Text="Rooms"/>
+            </StackPanel>
+          </Button>
+          <Button x:Name="NavArtifacts" Command="{Binding ShowArtifactsCommand}" Style="{StaticResource NavRowButton}"
+                  Visibility="{Binding ArtifactsNavVisibility}"
+                  ToolTip="Pictures, files and links from your recent chats."
+                  AutomationProperties.Name="Artifacts"
+                  Click="NavSide_Click">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Text="&#xE8B9;" Style="{StaticResource NavGlyph}"/>
+              <TextBlock Text="Artifacts"/>
+            </StackPanel>
+          </Button>
+          <Button x:Name="NavJourney" Visibility="{Binding JourneyNavVisibility}" Command="{Binding ShowJourneyCommand}" Style="{StaticResource NavRowButton}"
+                  ToolTip="Memory graph: the skills and memories the agent has picked up."
+                  AutomationProperties.Name="Journey"
+                  Click="NavSide_Click">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Text="&#xEA80;" Style="{StaticResource NavGlyph}"/>
+              <TextBlock Text="Journey"/>
+            </StackPanel>
+          </Button>
+          <Button x:Name="NavInsights" Visibility="{Binding InsightsNavVisibility}" Command="{Binding ShowInsightsCommand}" Style="{StaticResource NavRowButton}"
+                  ToolTip="Usage: tokens, chats, cost, top models, tools and skills."
+                  AutomationProperties.Name="Insights"
+                  Click="NavSide_Click">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Text="&#xE9D2;" Style="{StaticResource NavGlyph}"/>
+              <TextBlock Text="Insights"/>
+            </StackPanel>
+          </Button>
+          <Button x:Name="NavNeeds" Command="{Binding ShowNeedsYouCommand}" Style="{StaticResource NavRowButton}"
+                  AutomationProperties.Name="Needs you"
+                  Click="NavSide_Click">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Text="&#xEA8F;" Style="{StaticResource NavGlyph}"/>
+              <TextBlock Text="{Binding NeedsYouNavLabel}"/>
+            </StackPanel>
+          </Button>
+          <Button x:Name="NavProjects" Visibility="{Binding ProjectsNavVisibility}" Click="NavProjects_Click" Style="{StaticResource NavRowButton}"
+                  ToolTip="Local PC folder grant — not a shell; not the remote gateway filesystem."
+                  AutomationProperties.Name="Projects">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Text="&#xE8B7;" Style="{StaticResource NavGlyph}"/>
+              <TextBlock Text="Projects"/>
+            </StackPanel>
+          </Button>
+          <Button x:Name="MoreOverflow" Style="{StaticResource NavRowButton}"
+                  Click="MoreOverflow_Click" AutomationProperties.Name="More">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Text="&#xE712;" Style="{StaticResource NavGlyph}"/>
+              <TextBlock Text="More"/>
+            </StackPanel>
+          </Button>
+          <Popup x:Name="MorePopup" PlacementTarget="{Binding ElementName=MoreOverflow}" StaysOpen="False"
+                 AllowsTransparency="True">
+            <Border Background="{DynamicResource Brush.SurfaceRaised}" BorderBrush="{DynamicResource Brush.Border}"
+                    BorderThickness="1" CornerRadius="8" Padding="8" MinWidth="220">
+              <StackPanel>
+                <TextBox x:Name="SessionSearchBox" Text="{Binding SessionSearch, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6"
+                         ToolTip="Search sessions (profile-gated)"
+                         AutomationProperties.Name="Session search"/>
+                <Button Content="Search sessions" Command="{Binding SearchSessionsCommand}" Style="{StaticResource GhostButton}"
+                        Click="CloseMore_Click"/>
+                <Button Content="Refresh recent" Command="{Binding RefreshSessionsCommand}" Style="{StaticResource GhostButton}"
+                        Click="CloseMore_Click"/>
+              </StackPanel>
+            </Border>
+          </Popup>
+          <StackPanel Visibility="{Binding ChatsVisibility}" Margin="0,10,0,0">
+            <Button x:Name="LocalHistoryToggle" Content="▾  Open here" Style="{StaticResource GroupHeader}"
+                    Click="LocalHistoryToggle_Click" HorizontalAlignment="Stretch"/>
+            <ListBox x:Name="LocalHistoryList" ItemsSource="{Binding Conversations}"
+                     SelectedItem="{Binding SelectedConversation, Mode=TwoWay}"
+                     ItemContainerStyle="{StaticResource ConversationItem}"
+                     ScrollViewer.VerticalScrollBarVisibility="Disabled" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     Background="Transparent" BorderThickness="0" AutomationProperties.Name="Conversations">
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis"/>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+            <Button x:Name="GatewayHistoryToggle" Content="▾  Recent chats" Style="{StaticResource GroupHeader}"
+                    Click="GatewayHistoryToggle_Click" HorizontalAlignment="Stretch"/>
+            <WrapPanel Margin="8,2,0,2">
+              <Button Content="{Binding RunningFilterLabel}" Command="{Binding ToggleRunningFilterCommand}" Visibility="{Binding SessionFiltersVisibility}"
+                      Style="{StaticResource CompactChip}" AutomationProperties.Name="Running chats filter" Margin="0,0,0,4"
+                      ToolTip="Show only chats with a reply running now. Checks the gateway every few seconds while on."/>
+              <Button Content="{Binding NeedsYouFilterLabel}" Command="{Binding SetAttentionFilterCommand}" CommandParameter="NeedsYou"
+                      Style="{StaticResource CompactChip}" AutomationProperties.Name="Needs you chats filter" Margin="6,0,0,4"
+                      ToolTip="Show only chats waiting for your answer or with a reply you have not read."/>
+              <Button Content="{Binding ArchivedViewLabel}" Command="{Binding ToggleArchivedViewCommand}" Visibility="{Binding SessionFiltersVisibility}"
+                      Style="{StaticResource CompactChip}" AutomationProperties.Name="Archived chats" Margin="6,0,0,4"
+                      ToolTip="Show archived chats instead of recent ones."/>
+            </WrapPanel>
+            <TextBlock Text="{Binding SessionActionStatus}" Visibility="{Binding SessionActionStatusVisibility}" TextWrapping="Wrap" Margin="10,0,8,4"
+                       Foreground="{DynamicResource Brush.TextMuted}" FontSize="{StaticResource Size.Caption}"
+                       AutomationProperties.Name="Chat action status"/>
+            <TextBlock Text="{Binding LiveNote}" Visibility="{Binding LiveNoteVisibility}" TextWrapping="Wrap" Margin="10,0,8,4"
+                       Foreground="{DynamicResource Brush.TextMuted}" FontSize="{StaticResource Size.Caption}"
+                       AutomationProperties.Name="Running filter status"/>
+            <ListBox x:Name="GatewayHistoryList" ItemsSource="{Binding VisibleSessionRows}" ItemContainerStyle="{StaticResource ConversationItem}"
+                     ScrollViewer.VerticalScrollBarVisibility="Disabled" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     Background="Transparent" BorderThickness="0"
+                     AutomationProperties.Name="Gateway sessions"
+                     MouseLeftButtonUp="SessionRow_Click" PreviewMouseRightButtonDown="SessionRow_RightClick"
+                     ContextMenuOpening="SessionRow_ContextMenuOpening">
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <StackPanel>
+                    <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="{Binding Preview}" Foreground="{DynamicResource Brush.TextMuted}"
+                               FontSize="{StaticResource Size.Caption}" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="{Binding PinMark}" Foreground="{DynamicResource Brush.TextMuted}" FontSize="{StaticResource Size.Caption}"/>
+                    <TextBlock Text="{Binding LiveLabel}" Visibility="{Binding LiveVisibility}" Foreground="{DynamicResource Brush.Accent}"
+                               FontSize="{StaticResource Size.Caption}" FontWeight="SemiBold"/>
+                  </StackPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
+      </DockPanel>
+    </Border>
+
+    <!-- Dimmer when sidebar overlays on narrow widths -->
+    <Border x:Name="SidebarScrim" Grid.Column="1" Background="#66000000" Visibility="Collapsed"
+            MouseLeftButtonDown="SidebarScrim_Click"/>
+
+    <Grid x:Name="MainArea" Grid.Column="1" Background="{DynamicResource Brush.Surface}">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="*"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+      </Grid.RowDefinitions>
+
+      <!-- Top line: no strip of its own (it blends with the page, as in Claude); the sidebar's open button sits here when it is hidden -->
+      <Border Background="Transparent" Padding="10,6,14,2">
+        <DockPanel MinHeight="32">
+          <Button x:Name="SidebarOpenNarrow" DockPanel.Dock="Left" Margin="0,0,8,0"
+                  Click="SidebarToggle_Click" Visibility="Collapsed" Style="{StaticResource IconButton}"
+                  AutomationProperties.Name="Open sidebar" ToolTip="Show the sidebar (Ctrl+B)">
+            <TextBlock Style="{StaticResource IconGlyph}" Text="&#xE89F;" FontSize="16"/>
+          </Button>
+          <TextBlock DockPanel.Dock="Right" Text="{Binding IdentityStrip}" Foreground="{DynamicResource Brush.TextMuted}"
+                     FontSize="{StaticResource Size.Caption}" VerticalAlignment="Center" Margin="12,0,0,0"
+                     TextTrimming="CharacterEllipsis" MaxWidth="360" ToolTip="{Binding IdentityStrip}"
+                     AutomationProperties.Name="Local remote identity"/>
+          <Button DockPanel.Dock="Right" Content="{Binding UpdateNotice}" Click="UpdateNotice_Click" Visibility="{Binding UpdateNoticeVisibility}"
+                  Style="{StaticResource CompactChip}" Margin="12,0,0,0" VerticalAlignment="Center"
+                  AutomationProperties.Name="Update available" ToolTip="A newer version of Hikyaku is out. Opens Settings → Updates; nothing is installed until you confirm."/>
+          <Button DockPanel.Dock="Right" Content="Sign in again" Click="SignInAgain_Click" Visibility="{Binding SignInPromptVisibility}"
+                  Style="{StaticResource CompactChip}" Margin="12,0,0,0" VerticalAlignment="Center"
+                  AutomationProperties.Name="Sign in again" ToolTip="Opens Settings so you can sign in."/>
+          <TextBlock Text="{Binding StatusBanner}" Visibility="{Binding StatusBannerVisibility}" Foreground="{DynamicResource Brush.TextMuted}" TextWrapping="Wrap"
+                     FontSize="{StaticResource Size.Caption}" Opacity="0.85"
+                     AutomationProperties.Name="Connection status"/>
+        </DockPanel>
+      </Border>
+
+      <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="480"
+                  Visibility="{Binding OnboardingVisibility}">
+        <TextBlock Text="Choose which profiles this installation shows" FontSize="{StaticResource Size.Title}" TextWrapping="Wrap"/>
+        <TextBlock Margin="0,8,0,12" Foreground="{DynamicResource Brush.TextMuted}" TextWrapping="Wrap"
+                   Text="No profiles are selected, so nothing is shown or notified. Open Settings to add a profile and select it."/>
+        <Button Content="Open Settings" Click="Settings_Click" HorizontalAlignment="Left" Style="{StaticResource AccentButton}"/>
+      </StackPanel>
+
+      <Grid Grid.Row="1" Visibility="{Binding ChatsVisibility}">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="*"/>
+          <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <!-- The list is its own scroller so the panel can virtualize: only the messages on screen (plus a page either side) are
+             laid out, which keeps long chats responsive. -->
+        <ItemsControl x:Name="MessageList" Grid.Row="0" ItemsSource="{Binding Messages}"
+                      AutomationProperties.Name="Messages"
+                      VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Standard"
+                      VirtualizingPanel.ScrollUnit="Pixel" VirtualizingPanel.CacheLength="1" VirtualizingPanel.CacheLengthUnit="Page"
+                      ScrollViewer.CanContentScroll="True" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                      ScrollViewer.VerticalScrollBarVisibility="Auto">
+            <ItemsControl.Template>
+              <ControlTemplate TargetType="ItemsControl">
+                <ScrollViewer x:Name="MessageScroll" Focusable="False" Style="{StaticResource QuietScrollViewer}"
+                              CanContentScroll="True" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                  <ItemsPresenter Margin="0,12"/>
+                </ScrollViewer>
+              </ControlTemplate>
+            </ItemsControl.Template>
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate><VirtualizingStackPanel/></ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Border x:Name="MsgItem" Margin="26,0,26,10" MaxWidth="764" HorizontalAlignment="Stretch" Padding="2" CornerRadius="6"
+                        BorderThickness="2" Background="Transparent">
+                  <Border.Style>
+                    <Style TargetType="Border">
+                      <Setter Property="BorderBrush" Value="Transparent"/>
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsFindMatch}" Value="True">
+                          <Setter Property="Background" Value="{DynamicResource Brush.Well}"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding IsFindCurrent}" Value="True">
+                          <Setter Property="BorderBrush" Value="{DynamicResource Brush.Accent}"/>
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </Border.Style>
+                <StackPanel MaxWidth="760" HorizontalAlignment="Stretch">
+                  <TextBlock Text="{Binding Role}" Visibility="{Binding RoleLabelVisibility}" Foreground="{DynamicResource Brush.TextMuted}"
+                             FontSize="{StaticResource Size.Caption}" Margin="0,0,0,2"/>
+                  <!-- Stage 44: the model's reasoning, collapsed ("Thinking…" while it thinks, then "Thought for 12s"); Advanced only -->
+                  <Grid Visibility="{Binding DataContext.ReasoningDetailsVisibility, RelativeSource={RelativeSource AncestorType=Window}}">
+                    <Expander IsExpanded="{Binding ReasoningExpanded, Mode=TwoWay}" Visibility="{Binding ReasoningVisibility}" Margin="0,0,0,6"
+                              AutomationProperties.Name="Reasoning">
+                      <Expander.Header>
+                        <TextBlock Text="{Binding ReasoningHeader}" Foreground="{DynamicResource Brush.TextMuted}" FontStyle="Italic"
+                                   FontSize="{StaticResource Size.BodySmall}"/>
+                      </Expander.Header>
+                      <Border BorderBrush="{DynamicResource Brush.Border}" BorderThickness="2,0,0,0" Padding="10,2,0,2" Margin="6,4,0,0">
+                        <TextBox Text="{Binding Reasoning, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MaxHeight="320"
+                                 VerticalScrollBarVisibility="Auto" Style="{StaticResource ComposerBareBox}" Padding="0"
+                                 Foreground="{DynamicResource Brush.TextMuted}" FontSize="{StaticResource Size.BodySmall}"
+                                 AutomationProperties.Name="Reasoning text"/>
+                      </Border>
+                    </Expander>
+                  </Grid>
+                  <!-- Stage 44: the steps come before the answer they led to, as in Claude Desktop -->
+                  <ItemsControl ItemsSource="{Binding Tools}" Margin="0,0,0,4"
+                                Visibility="{Binding DataContext.AdvancedToolsVisibility, RelativeSource={RelativeSource AncestorType=Window}}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <Expander IsExpanded="{Binding IsExpanded, Mode=TwoWay}" Margin="0,0,0,2"
+                                  Foreground="{DynamicResource Brush.TextMuted}" FontSize="{StaticResource Size.Caption}"
+                                  AutomationProperties.Name="Tool call">
+                          <Expander.Header>
+                            <!-- a TextBlock, not a string: a string header treats "_" as an access key and drops it from tool names like read_file -->
+                            <StackPanel Orientation="Horizontal">
+                              <TextBlock FontFamily="{StaticResource Font.Icons}" Text="{Binding StatusGlyph}" FontSize="10" Margin="0,2,6,0"
+                                         Foreground="{DynamicResource Brush.TextMuted}"/>
+                              <TextBlock Text="{Binding Header}" FontSize="{StaticResource Size.Caption}" Foreground="{DynamicResource Brush.TextMuted}"/>
+                              <TextBlock Text="{Binding Meta}" Visibility="{Binding MetaVisibility}" FontSize="{StaticResource Size.Caption}" Margin="8,0,0,0"
+                                         Foreground="{DynamicResource Brush.TextMuted}" Opacity="0.75" TextTrimming="CharacterEllipsis" MaxWidth="420"/>
+                            </StackPanel>
+                          </Expander.Header>
+                          <StackPanel Margin="12,2,0,4">
+                            <TextBlock Text="{Binding Risk}" Visibility="{Binding RiskVisibility}" Foreground="{DynamicResource Brush.Danger}"
+                                       TextWrapping="Wrap" Margin="0,0,0,4" AutomationProperties.Name="Tool risk"/>
+                            <TextBlock Text="Input" Foreground="{DynamicResource Brush.TextMuted}" Visibility="{Binding HasInput, Converter={StaticResource BoolToVis}}"/>
+                            <TextBox Text="{Binding Input, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MaxHeight="160"
+                                     VerticalScrollBarVisibility="Auto" FontFamily="{StaticResource Font.Code}" BorderThickness="0"
+                                     Background="{DynamicResource Brush.Well}" Foreground="{DynamicResource Brush.Text}"
+                                     Visibility="{Binding HasInput, Converter={StaticResource BoolToVis}}" AutomationProperties.Name="Tool input"/>
+                            <TextBlock Text="Result" Margin="0,4,0,0" Foreground="{DynamicResource Brush.TextMuted}" Visibility="{Binding HasOutput, Converter={StaticResource BoolToVis}}"/>
+                            <TextBox Text="{Binding Output, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MaxHeight="240"
+                                     VerticalScrollBarVisibility="Auto" FontFamily="{StaticResource Font.Code}" BorderThickness="0"
+                                     Background="{DynamicResource Brush.Well}" Foreground="{DynamicResource Brush.Text}"
+                                     Visibility="{Binding HasOutput, Converter={StaticResource BoolToVis}}" AutomationProperties.Name="Tool result"/>
+                          </StackPanel>
+                        </Expander>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <!-- Stage 44: the agent's plan as a checklist (Advanced) -->
+                  <Grid Visibility="{Binding DataContext.PlanDetailsVisibility, RelativeSource={RelativeSource AncestorType=Window}}">
+                    <StackPanel Visibility="{Binding PlanVisibility}" Margin="0,0,0,8" AutomationProperties.Name="Plan">
+                      <TextBlock Text="{Binding PlanHeader}" Foreground="{DynamicResource Brush.TextMuted}" FontSize="{StaticResource Size.Caption}"
+                                 FontWeight="SemiBold" Margin="0,0,0,2"/>
+                      <ItemsControl ItemsSource="{Binding Plan}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate>
+                            <StackPanel Orientation="Horizontal" Margin="{Binding Indent}" Opacity="{Binding Opacity}">
+                              <TextBlock FontFamily="{StaticResource Font.Icons}" Text="{Binding Glyph}" FontSize="11" Margin="0,3,8,0"
+                                         Foreground="{DynamicResource Brush.TextMuted}"/>
+                              <TextBlock Text="{Binding Text}" TextDecorations="{Binding Decorations}" TextWrapping="Wrap"
+                                         FontSize="{StaticResource Size.BodySmall}" MaxWidth="680"/>
+                            </StackPanel>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </StackPanel>
+                  </Grid>
+                  <!-- Your messages: a soft bubble on the right. Replies: plain text across the column (as in Claude Desktop). -->
+                  <Border AutomationProperties.Name="{Binding Role}">
+                    <Border.Style>
+                      <Style TargetType="Border">
+                        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding IsMine}" Value="True">
+                            <Setter Property="Background" Value="{DynamicResource Brush.Surface3}"/>
+                            <Setter Property="CornerRadius" Value="16"/>
+                            <Setter Property="Padding" Value="14,8"/>
+                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                            <Setter Property="MaxWidth" Value="600"/>
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </Border.Style>
+                    <Grid>
+                      <local:MarkdownBlock Markdown="{Binding Markdown}" MaxWidth="760" Visibility="{Binding MarkdownVisibility}"/>
+                      <TextBox Text="{Binding Text, Mode=OneWay}" Visibility="{Binding PlainTextVisibility}" IsReadOnly="True"
+                               TextWrapping="Wrap" Style="{StaticResource ComposerBareBox}" Padding="0" Cursor="IBeam"
+                               AutomationProperties.Name="Your message"/>
+                    </Grid>
+                  </Border>
+                  <!-- Actions: small icons that fade in while the pointer is on the message (or keyboard focus is in it) -->
+                  <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                    <StackPanel.Style>
+                      <Style TargetType="StackPanel">
+                        <Setter Property="Opacity" Value="0"/>
+                        <Setter Property="HorizontalAlignment" Value="Left"/>
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding IsMine}" Value="True">
+                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                          </DataTrigger>
+                          <DataTrigger Binding="{Binding IsMouseOver, ElementName=MsgItem}" Value="True">
+                            <Setter Property="Opacity" Value="1"/>
+                          </DataTrigger>
+                          <DataTrigger Binding="{Binding IsKeyboardFocusWithin, ElementName=MsgItem}" Value="True">
+                            <Setter Property="Opacity" Value="1"/>
+                          </DataTrigger>
+                          <DataTrigger Binding="{Binding IsReading}" Value="True">
+                            <Setter Property="Opacity" Value="1"/>
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </StackPanel.Style>
+                    <Button Style="{StaticResource MiniIconButton}" Visibility="{Binding ReadAloudVisibility}"
+                            ToolTip="{Binding ReadAloudLabel}" AutomationProperties.Name="Read reply aloud"
+                            Command="{Binding DataContext.ReadAloudMessageCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                            CommandParameter="{Binding}">
+                      <TextBlock Style="{StaticResource IconGlyph}" FontSize="13" Text="{Binding ReadAloudGlyph}"/>
+                    </Button>
+                    <StackPanel Orientation="Horizontal" Visibility="{Binding ActionsVisibility}">
+                      <Button Style="{StaticResource MiniIconButton}" Visibility="{Binding RewindVisibility}"
+                              ToolTip="Edit this message and send it again. Replaces it and everything after it."
+                              AutomationProperties.Name="Edit message"
+                              Command="{Binding DataContext.EditMessageCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                              CommandParameter="{Binding}">
+                        <TextBlock Style="{StaticResource IconGlyph}" FontSize="13" Text="&#xE70F;"/>
+                      </Button>
+                      <Button Style="{StaticResource MiniIconButton}" Visibility="{Binding RewindVisibility}"
+                              ToolTip="Ask again with the same message. Replaces everything after it."
+                              AutomationProperties.Name="Regenerate reply"
+                              Command="{Binding DataContext.RegenerateMessageCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                              CommandParameter="{Binding}">
+                        <TextBlock Style="{StaticResource IconGlyph}" FontSize="13" Text="&#xE72C;"/>
+                      </Button>
+                      <Button Style="{StaticResource MiniIconButton}"
+                              Visibility="{Binding DataContext.BranchVisibility, RelativeSource={RelativeSource AncestorType=Window}}"
+                              ToolTip="Branch: copy this chat up to here into a new chat. The original is unchanged."
+                              AutomationProperties.Name="Branch from here"
+                              Command="{Binding DataContext.BranchFromHereCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                              CommandParameter="{Binding}">
+                        <TextBlock Style="{StaticResource IconGlyph}" FontSize="13" Text="&#xE8C8;"/>
+                      </Button>
+                    </StackPanel>
+                  </StackPanel>
+                  <ItemsControl ItemsSource="{Binding Attachments}" Margin="0,4,0,0">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <Border Background="{DynamicResource Brush.Well}" CornerRadius="6" Padding="8,4" Margin="0,0,6,4">
+                          <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding Label}" VerticalAlignment="Center"/>
+                            <Button Content="Download" Margin="8,0,0,0" Style="{StaticResource CompactChip}"
+                                    Command="{Binding DataContext.DownloadAttachmentCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    CommandParameter="{Binding}"
+                                    Visibility="{Binding HasPath, Converter={StaticResource BoolToVis}}"/>
+                          </StackPanel>
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <TextBlock Text="{Binding Activity}" Foreground="{DynamicResource Brush.TextMuted}"
+                             FontSize="{StaticResource Size.Caption}" FontFamily="{StaticResource Font.Code}"
+                             Opacity="0.8" Visibility="{Binding ActivityVisibility}"/>
+                  <!-- A failed reply: what happened, what is known about delivery, and (only when safe) a way to put the message back. -->
+                  <Border Visibility="{Binding FailureVisibility}" Margin="0,6,0,0" Padding="10,8" CornerRadius="8"
+                          BorderThickness="1" BorderBrush="{DynamicResource Brush.Warning}" Background="{DynamicResource Brush.SurfaceRaised}"
+                          AutomationProperties.Name="Reply failed">
+                    <StackPanel>
+                      <TextBlock Text="{Binding Failure.Title}" FontWeight="SemiBold"/>
+                      <TextBlock Text="{Binding Failure.Explanation}" TextWrapping="Wrap"/>
+                      <TextBlock Text="{Binding Failure.Detail}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextMuted}"
+                                 Visibility="{Binding DataContext.AdvancedToolsVisibility, RelativeSource={RelativeSource AncestorType=Window}}"
+                                 FontSize="{StaticResource Size.Caption}" FontFamily="{StaticResource Font.Code}"/>
+                      <TextBlock Text="{Binding Failure.DeliveryNote}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                      <Button Content="Put my message back in the box" Style="{StaticResource CompactChip}" HorizontalAlignment="Left" Margin="0,6,0,0"
+                              Visibility="{Binding RestoreVisibility}"
+                              Command="{Binding DataContext.RestorePromptCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                              CommandParameter="{Binding}" AutomationProperties.Name="Put my message back in the box"
+                              ToolTip="Fills the message box with what you wrote. Nothing is sent until you press Send."/>
+                    </StackPanel>
+                  </Border>
+                  <!-- the agent's notices (such as "Context was compressed"): technical, so Advanced only -->
+                  <Grid Visibility="{Binding DataContext.NoticeDetailsVisibility, RelativeSource={RelativeSource AncestorType=Window}}">
+                  <ItemsControl ItemsSource="{Binding Notices}" Visibility="{Binding NoticesVisibility}" Margin="0,4,0,0" AutomationProperties.Name="Notices">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <TextBlock Text="{Binding}" Foreground="{DynamicResource Brush.TextMuted}" FontStyle="Italic" TextWrapping="Wrap"
+                                   FontSize="{StaticResource Size.BodySmall}"/>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  </Grid>
+                  <Border Visibility="{Binding RiskWarningVisibility}" Background="{DynamicResource Brush.Well}" CornerRadius="8" Padding="10,6" Margin="0,6,0,0">
+                    <TextBlock Text="{Binding RiskWarning}" Foreground="{DynamicResource Brush.Warning}" TextWrapping="Wrap"
+                               AutomationProperties.Name="Risk warning"/>
+                  </Border>
+                  <!-- What the agent is doing right now: the gateway's words in Advanced, plain words in Simple -->
+                  <Grid Visibility="{Binding ActivityLineVisibility}" Margin="0,4,0,0">
+                    <TextBlock Text="{Binding ActivityLineAdvanced}" Visibility="{Binding DataContext.AdvancedActivityVisibility, RelativeSource={RelativeSource AncestorType=Window}}"
+                               Foreground="{DynamicResource Brush.TextMuted}" FontStyle="Italic" FontSize="{StaticResource Size.BodySmall}"
+                               TextTrimming="CharacterEllipsis" AutomationProperties.Name="Activity"/>
+                    <TextBlock Text="{Binding ActivityLineSimple}" Visibility="{Binding DataContext.SimpleActivityVisibility, RelativeSource={RelativeSource AncestorType=Window}}"
+                               Foreground="{DynamicResource Brush.TextMuted}" FontStyle="Italic" FontSize="{StaticResource Size.BodySmall}"
+                               AutomationProperties.Name="Activity"/>
+                  </Grid>
+                  <Button Content="Remove from queue" Style="{StaticResource CompactChip}" HorizontalAlignment="Left"
+                          Visibility="{Binding UnqueueVisibility}"
+                          Command="{Binding DataContext.UnqueueCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                          CommandParameter="{Binding}" AutomationProperties.Name="Remove from queue"/>
+                </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <Button x:Name="JumpLatest" Grid.Row="0" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,28,14"
+                Command="{Binding JumpToLatestCommand}" Content="{Binding JumpToLatestLabel}" Visibility="{Binding JumpToLatestVisibility}"
+                Style="{StaticResource AccentButton}" AutomationProperties.Name="Jump to latest message"
+                ToolTip="Scroll to the newest message and follow the reply again."/>
+        <!-- Load earlier messages: explicit, bounded paging of stored history -->
+        <Border Grid.Row="0" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,8,0,0" Padding="4"
+                Background="{DynamicResource Brush.SurfaceRaised}" BorderBrush="{DynamicResource Brush.Border}"
+                BorderThickness="1" CornerRadius="8" Visibility="{Binding LoadEarlierVisibility}">
+          <Button Content="{Binding LoadEarlierLabel}" Command="{Binding LoadEarlierCommand}" Style="{StaticResource CompactChip}"
+                  ToolTip="Show older messages of this chat above, keeping your place."
+                  AutomationProperties.Name="Load earlier messages"/>
+        </Border>
+        <!-- Find in chat: literal search over the messages loaded in this chat -->
+        <Border Grid.Row="0" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="0,8,28,0" Padding="8,6"
+                Background="{DynamicResource Brush.SurfaceRaised}" BorderBrush="{DynamicResource Brush.Border}"
+                BorderThickness="1" CornerRadius="8" Visibility="{Binding FindVisibility}"
+                AutomationProperties.Name="Find in chat">
+          <StackPanel Orientation="Horizontal">
+            <TextBox x:Name="FindBox" Width="220" Text="{Binding FindText, UpdateSourceTrigger=PropertyChanged}"
+                     PreviewKeyDown="FindBox_PreviewKeyDown" AutomationProperties.Name="Find text"
+                     ToolTip="{Binding FindScopeNote}"/>
+            <TextBlock Text="{Binding FindStatus}" Margin="8,0" VerticalAlignment="Center" MinWidth="64"
+                       Foreground="{DynamicResource Brush.TextMuted}" AutomationProperties.Name="Find result"
+                       AutomationProperties.LiveSetting="Polite"/>
+            <Button Content="Previous" Command="{Binding FindPreviousCommand}" Style="{StaticResource CompactChip}"
+                    AutomationProperties.Name="Previous match"/>
+            <Button Content="Next" Command="{Binding FindNextCommand}" Style="{StaticResource CompactChip}" Margin="4,0,0,0"
+                    AutomationProperties.Name="Next match"/>
+            <Button Content="Close" Command="{Binding CloseFindCommand}" Style="{StaticResource CompactChip}" Margin="4,0,0,0"
+                    AutomationProperties.Name="Close find"/>
+          </StackPanel>
+        </Border>
+        <!-- Subagent progress frame (source-backed; steer ack ≠ child read) -->
+        <Border Grid.Row="1" Margin="24,0,24,4" Padding="10,8" MaxWidth="820" HorizontalAlignment="Center"
+                Background="{DynamicResource Brush.Well}" CornerRadius="8"
+                Visibility="{Binding SubagentPanelVisibility}"
+                AutomationProperties.Name="Subagent progress">
+          <DockPanel>
+            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,6,0,0">
+              <TextBox Width="280" Text="{Binding SubagentSteerText, UpdateSourceTrigger=PropertyChanged}"
+                       ToolTip="Guidance queued to the running turn — ack is not proof the child read it."
+                       AutomationProperties.Name="Subagent steer"/>
+              <Button Content="Steer" Command="{Binding SteerSubagentCommand}" Style="{StaticResource CompactChip}" Margin="6,0,0,0"/>
+            </StackPanel>
+            <TextBlock DockPanel.Dock="Top" Text="{Binding SteerHint}" Foreground="{DynamicResource Brush.TextMuted}"
+                       FontSize="{StaticResource Size.Caption}" TextWrapping="Wrap" Margin="0,0,0,6"/>
+            <ItemsControl ItemsSource="{Binding SubagentRows}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <DockPanel Margin="0,2">
+                    <Button DockPanel.Dock="Right" Content="Stop" Style="{StaticResource CompactChip}"
+                            Command="{Binding DataContext.StopSubagentCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                            CommandParameter="{Binding}"
+                            Visibility="{Binding CanStop, Converter={StaticResource BoolToVis}}"/>
+                    <StackPanel>
+                      <TextBlock FontWeight="SemiBold" FontSize="{StaticResource Size.BodySmall}">
+                        <Run Text="{Binding Goal, Mode=OneWay}"/>
+                        <Run Text=" · "/>
+                        <Run Text="{Binding Status, Mode=OneWay}"/>
+                        <Run Text=" "/>
+                        <Run Text="{Binding Elapsed, Mode=OneWay}"/>
+                      </TextBlock>
+                      <TextBlock Text="{Binding Detail}" Foreground="{DynamicResource Brush.TextMuted}"
+                                 FontSize="{StaticResource Size.Caption}" TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                  </DockPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </DockPanel>
+        </Border>
+      </Grid>
+
+      <DockPanel Grid.Row="1" Visibility="{Binding BotsVisibility}" Margin="24,12"
+                 AutomationProperties.Name="Bots roster">
+        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+          <TextBlock Text="Bots" FontSize="{StaticResource Size.Title}" FontWeight="SemiBold"/>
+          <TextBlock Text="{Binding GateDisclaimer}" Foreground="{DynamicResource Brush.TextMuted}"
+                     TextWrapping="Wrap" Margin="0,4,0,6" FontSize="{StaticResource Size.Caption}"/>
+          <TextBlock Text="{Binding BotsStatus}" Foreground="{DynamicResource Brush.TextMuted}"
+                     TextWrapping="Wrap" Margin="0,0,0,6" FontSize="{StaticResource Size.BodySmall}"/>
+          <TextBlock Text="{Binding RoomNotice}" Foreground="{DynamicResource Brush.Warning}"
+                     TextWrapping="Wrap" Margin="0,0,0,6" FontSize="{StaticResource Size.Caption}"/>
+          <Button Content="Refresh roster" Command="{Binding RefreshBotsCommand}" Style="{StaticResource CompactChip}"
+                  HorizontalAlignment="Left"/>
+        </StackPanel>
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+          <DockPanel Grid.Column="0" Margin="0,0,12,0">
+            <TextBlock DockPanel.Dock="Top" Text="Roster" FontWeight="SemiBold" Margin="0,0,0,6"/>
+            <ListBox ItemsSource="{Binding BotRows}" ItemContainerStyle="{StaticResource ConversationItem}"
+                     VirtualizingPanel.IsVirtualizing="True" AutomationProperties.Name="Bot roster"
+                     MouseLeftButtonUp="BotRow_Click">
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <StackPanel Margin="2,4">
+                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                    <TextBlock Text="{Binding Handle}" Foreground="{DynamicResource Brush.TextMuted}"
+                               FontSize="{StaticResource Size.Caption}"/>
+                    <TextBlock Text="{Binding Preview}" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                    <TextBlock Text="{Binding Meta}" Foreground="{DynamicResource Brush.TextMuted}"
+                               FontSize="{StaticResource Size.Caption}"/>
+                  </StackPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </DockPanel>
+          <DockPanel Grid.Column="1">
+            <TextBlock DockPanel.Dock="Top" Text="Rooms" FontWeight="SemiBold" Margin="0,0,0,6"/>
+            <ListBox ItemsSource="{Binding RoomRows}" ItemContainerStyle="{StaticResource ConversationItem}"
+                     VirtualizingPanel.IsVirtualizing="True" AutomationProperties.Name="Rooms"
+                     MouseLeftButtonUp="RoomRow_Click">
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <StackPanel Margin="2,4">
+                    <DockPanel>
+                      <TextBlock Text="{Binding Badge}" DockPanel.Dock="Right"
+                                 Foreground="{DynamicResource Brush.Warning}"
+                                 FontSize="{StaticResource Size.Caption}"/>
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                    </DockPanel>
+                    <TextBlock Text="{Binding Preview}" TextWrapping="Wrap" Margin="0,2,0,0"
+                               FontSize="{StaticResource Size.BodySmall}"/>
+                  </StackPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </DockPanel>
+        </Grid>
+      </DockPanel>
+
+      <!-- Inbox (Stages 42-43): scheduled-job results of the ticked profiles; folders first (as in the Android app), then results -->
+      <DockPanel Grid.Row="1" Visibility="{Binding InboxVisibility}" Margin="24,12" MaxWidth="860">
+        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+          <DockPanel>
+            <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Command="{Binding RefreshJobInboxCommand}"
+                    ToolTip="Refresh" AutomationProperties.Name="Refresh Inbox">
+              <TextBlock Style="{StaticResource IconGlyph}" Text="&#xE72C;"/>
+            </Button>
+            <CheckBox DockPanel.Dock="Right" Content="All results" IsChecked="{Binding JobInboxShowAllResults}" VerticalAlignment="Center" Margin="0,0,12,0"
+                      ToolTip="One list of every result, newest first, instead of folders." AutomationProperties.Name="All results"/>
+            <CheckBox DockPanel.Dock="Right" Content="All my profiles" IsChecked="{Binding JobInboxAllProfiles}"
+                      Visibility="{Binding JobInboxAllToggleVisibility}" VerticalAlignment="Center" Margin="0,0,12,0"
+                      ToolTip="Show the results of every profile ticked in Settings, not only the one chosen in the sidebar."
+                      AutomationProperties.Name="All my profiles"/>
+            <Button DockPanel.Dock="Left" Style="{StaticResource IconButton}" Command="{Binding BackToInboxFoldersCommand}"
+                    Visibility="{Binding JobInboxBackVisibility}" Margin="-6,0,4,0" ToolTip="Back to the folders" AutomationProperties.Name="Back to the folders">
+              <TextBlock Style="{StaticResource IconGlyph}" Text="&#xE72B;"/>
+            </Button>
+            <TextBlock Text="{Binding JobInboxTitle}" FontSize="{StaticResource Size.Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+          </DockPanel>
+          <TextBlock Text="Results from the jobs Hermes runs for you on a schedule. Click one to open it."
+                     Foreground="{DynamicResource Brush.TextMuted}" TextWrapping="Wrap" Margin="0,4,0,6"
+                     FontSize="{StaticResource Size.BodySmall}"/>
+          <TextBlock Text="{Binding JobInboxStatus}" Visibility="{Binding JobInboxStatusVisibility}" Foreground="{DynamicResource Brush.TextMuted}"
+                     TextWrapping="Wrap" Margin="0,0,0,6" AutomationProperties.Name="Inbox status"/>
+          <StackPanel Orientation="Horizontal" Visibility="{Binding HiddenJobsVisibility}">
+            <TextBlock Text="{Binding HiddenJobsNote}" Foreground="{DynamicResource Brush.TextMuted}" VerticalAlignment="Center"
+                       FontSize="{StaticResource Size.BodySmall}"/>
+            <Button Content="Show them" Command="{Binding ShowHiddenJobsCommand}" Style="{StaticResource CompactChip}" Margin="6,0,0,0"
+                    AutomationProperties.Name="Show hidden jobs"/>
+          </StackPanel>
+        </StackPanel>
+        <Grid>
+          <!-- Folders: Failed, the groups made here, then each job -->
+          <ListBox ItemsSource="{Binding JobInboxFolders}" Visibility="{Binding JobInboxFoldersVisibility}" ItemContainerStyle="{StaticResource ConversationItem}"
+                   Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                   AutomationProperties.Name="Inbox folders" MouseLeftButtonUp="InboxFolder_Click">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <DockPanel Margin="2,5">
+                  <Button DockPanel.Dock="Right" Style="{StaticResource MiniIconButton}" Command="{Binding MoveToGroupCommand}" Visibility="{Binding MoveVisibility}"
+                          VerticalAlignment="Center" ToolTip="Put in a group (a category of your own; kept on this PC)" AutomationProperties.Name="Move to group">
+                    <TextBlock Style="{StaticResource IconGlyph}" FontSize="12" Text="&#xE8B7;"/>
+                  </Button>
+                  <TextBlock DockPanel.Dock="Left" Style="{StaticResource NavGlyph}" Text="{Binding Glyph}" Margin="0,2,4,0" VerticalAlignment="Top"/>
+                  <StackPanel>
+                    <DockPanel>
+                      <TextBlock DockPanel.Dock="Right" Text="{Binding When}" Foreground="{DynamicResource Brush.TextMuted}"
+                                 FontSize="{StaticResource Size.Caption}" Margin="12,0,4,0" VerticalAlignment="Center"/>
+                      <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Text="{Binding Count}" Foreground="{DynamicResource Brush.TextMuted}" FontSize="{StaticResource Size.Caption}"
+                                   Margin="8,1,0,0" VerticalAlignment="Center"/>
+                      </StackPanel>
+                    </DockPanel>
+                    <TextBlock Text="{Binding Preview}" Foreground="{DynamicResource Brush.TextMuted}" TextTrimming="CharacterEllipsis"
+                               Margin="0,2,0,0" FontSize="{StaticResource Size.BodySmall}"/>
+                  </StackPanel>
+                </DockPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <!-- Results: an agent run opens as its chat; a script-only run expands in place -->
+          <ListBox ItemsSource="{Binding JobResults}" Visibility="{Binding JobInboxResultsVisibility}" ItemContainerStyle="{StaticResource ConversationItem}"
+                   Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                   AutomationProperties.Name="Inbox results" MouseLeftButtonUp="JobResult_Click">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <DockPanel Margin="2,4">
+                  <Button DockPanel.Dock="Right" Style="{StaticResource MiniIconButton}" Command="{Binding HideCommand}" VerticalAlignment="Top"
+                          ToolTip="Hide this job from the Inbox on this PC. The job keeps running; Show them brings it back."
+                          AutomationProperties.Name="Hide this job">
+                    <TextBlock Style="{StaticResource IconGlyph}" FontSize="11" Text="&#xE711;"/>
+                  </Button>
+                  <StackPanel>
+                    <DockPanel>
+                      <TextBlock DockPanel.Dock="Right" Text="{Binding When}" Foreground="{DynamicResource Brush.TextMuted}"
+                                 FontSize="{StaticResource Size.Caption}" Margin="12,0,4,0" VerticalAlignment="Center"/>
+                      <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                        <Border Visibility="{Binding FailedVisibility}" Background="{DynamicResource Brush.Well}" CornerRadius="6" Padding="6,0" Margin="8,0,0,0">
+                          <TextBlock Text="Failed" Foreground="{DynamicResource Brush.Danger}" FontSize="{StaticResource Size.Caption}"/>
+                        </Border>
+                        <Border Visibility="{Binding ScriptVisibility}" Background="{DynamicResource Brush.Well}" CornerRadius="6" Padding="6,0" Margin="8,0,0,0"
+                                ToolTip="A script-only job: its output is shown here, there is no chat to open.">
+                          <TextBlock Text="Script output" Foreground="{DynamicResource Brush.TextMuted}" FontSize="{StaticResource Size.Caption}"/>
+                        </Border>
+                        <TextBlock Text="{Binding ProfileLabel}" Visibility="{Binding ProfileVisibility}" Foreground="{DynamicResource Brush.TextMuted}"
+                                   FontSize="{StaticResource Size.Caption}" Margin="8,1,0,0" VerticalAlignment="Center"/>
+                      </StackPanel>
+                    </DockPanel>
+                    <TextBlock Text="{Binding Preview}" Foreground="{DynamicResource Brush.TextMuted}" TextTrimming="{Binding PreviewTrimming}"
+                               TextWrapping="{Binding PreviewWrapping}" Margin="0,2,0,0" FontSize="{StaticResource Size.BodySmall}"/>
+                  </StackPanel>
+                </DockPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </DockPanel>
+
+      <DockPanel Grid.Row="1" Visibility="{Binding ScheduledVisibility}" Margin="24,12">
+        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+          <TextBlock Text="Scheduled jobs" FontSize="{StaticResource Size.Title}" FontWeight="SemiBold"/>
+          <TextBlock Text="Jobs the gateway runs on a schedule (Hermes cron), including Bot Mode routines. Changes apply on the gateway; each action goes to the profile that owns the job."
+                     Foreground="{DynamicResource Brush.TextMuted}" TextWrapping="Wrap" Margin="0,4,0,8"
+                     FontSize="{StaticResource Size.BodySmall}"/>
+          <TextBlock Text="{Binding CronStatus}" Visibility="{Binding CronStatusVisibility}" TextWrapping="Wrap" Margin="0,0,0,8"
+                     Foreground="{DynamicResource Brush.Warning}" AutomationProperties.Name="Scheduled jobs status"/>
+          <StackPanel Orientation="Horizontal">
+            <Button Content="New job" Command="{Binding NewCronJobCommand}" Style="{StaticResource AccentButton}"
+                    AutomationProperties.Name="New scheduled job"/>
+            <Button Content="Refresh" Command="{Binding RefreshCronCommand}" AutomationProperties.Name="Refresh scheduled jobs"/>
+            <CheckBox Content="All profiles" IsChecked="{Binding CronAllProfiles}" VerticalAlignment="Center" Margin="12,0,0,0"
+                      ToolTip="{Binding CronScopeLabel}" AutomationProperties.Name="All profiles"/>
+          </StackPanel>
+          <TextBlock Text="No scheduled jobs yet. Choose New job to add one." Visibility="{Binding CronEmptyVisibility}"
+                     Foreground="{DynamicResource Brush.TextMuted}" Margin="0,12,0,0"/>
+        </StackPanel>
+        <ListBox ItemsSource="{Binding CronRows}" HorizontalContentAlignment="Stretch" AutomationProperties.Name="Scheduled jobs"
+                 VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <Border Padding="8,8" MaxWidth="900" HorizontalAlignment="Left">
+                <StackPanel>
+                  <DockPanel>
+                    <TextBlock Text="{Binding StateLabel}" DockPanel.Dock="Right" Foreground="{DynamicResource Brush.TextMuted}"
+                               Margin="12,0,0,0"/>
+                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                  </DockPanel>
+                  <TextBlock Foreground="{DynamicResource Brush.TextMuted}" FontSize="{StaticResource Size.Caption}" TextWrapping="Wrap">
+                    <Run Text="{Binding Schedule, Mode=OneWay}"/><Run Text=" · "/><Run Text="{Binding NextRun, Mode=OneWay}"/><Run Text=" · "/><Run Text="{Binding LastRun, Mode=OneWay}"/>
+                  </TextBlock>
+                  <TextBlock Text="{Binding Meta}" Foreground="{DynamicResource Brush.TextMuted}" FontSize="{StaticResource Size.Caption}"/>
+                  <TextBlock Text="{Binding Notes}" Visibility="{Binding NotesVisibility}" TextWrapping="Wrap"
+                             Foreground="{DynamicResource Brush.Warning}" FontSize="{StaticResource Size.Caption}" Margin="0,2,0,0"/>
+                  <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                    <Button Content="{Binding PauseResumeLabel}" Command="{Binding PauseResumeCommand}"/>
+                    <Button Content="Run now" Command="{Binding RunNowCommand}"/>
+                    <Button Content="Edit" Command="{Binding EditCommand}"/>
+                    <Button Content="Delete" Command="{Binding DeleteCommand}"/>
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </DockPanel>
+
+      <DockPanel Grid.Row="1" Visibility="{Binding CapabilitiesVisibility}" Margin="24,12">
+        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+          <TextBlock Text="Capabilities" FontSize="{StaticResource Size.Title}" FontWeight="SemiBold"/>
+          <TextBlock Text="{Binding CapabilitiesProfileLabel}" Foreground="{DynamicResource Brush.TextMuted}" TextWrapping="Wrap"
+                     Margin="0,4,0,8" FontSize="{StaticResource Size.BodySmall}"/>
+          <TextBlock Text="{Binding CapabilitiesStatus}" Visibility="{Binding CapabilitiesStatusVisibility}" TextWrapping="Wrap" Margin="0,0,0,8"
+                     Foreground="{DynamicResource Brush.Warning}" AutomationProperties.Name="Capabilities status"/>
+          <Button Content="Refresh" Command="{Binding RefreshCapabilitiesCommand}" HorizontalAlignment="Left"
+                  AutomationProperties.Name="Refresh capabilities"/>
+        </StackPanel>
+        <TabControl x:Name="CapabilityTabs" AutomationProperties.Name="Capability lists">
+          <TabItem Header="Skills">
+            <ListBox ItemsSource="{Binding SkillRows}" HorizontalContentAlignment="Stretch" AutomationProperties.Name="Skills"
+                     VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" Margin="0,8,0,0">
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <Border Padding="8,6" MaxWidth="900" HorizontalAlignment="Left">
+                    <DockPanel>
+                      <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top" Margin="12,0,0,0">
+                        <Button Content="Test" Command="{Binding TestCommand}" Visibility="{Binding TestVisibility}"/>
+                        <Button Content="{Binding ToggleLabel}" Command="{Binding ToggleCommand}"/>
+                      </StackPanel>
+                      <StackPanel>
+                        <TextBlock FontWeight="SemiBold"><Run Text="{Binding Title, Mode=OneWay}"/><Run Text="  "/><Run Text="{Binding StateLabel, Mode=OneWay}" Foreground="{DynamicResource Brush.TextMuted}"/></TextBlock>
+                        <TextBlock Text="{Binding Detail}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextMuted}" FontSize="{StaticResource Size.BodySmall}"/>
+                        <TextBlock Text="{Binding Meta}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextMuted}" FontSize="{StaticResource Size.Caption}"/>
+                        <TextBlock Text="{Binding Note}" Visibility="{Binding NoteVisibility}" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource Brush.Warning}" FontSize="{StaticResource Size.Caption}"/>
+                      </StackPanel>
+                    </DockPanel>
+                  </Border>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </TabItem>
+          <TabItem Header="Toolsets">
+            <ListBox ItemsSource="{Binding ToolsetRows}" HorizontalContentAlignment="Stretch" AutomationProperties.Name="Toolsets"
+                     VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" Margin="0,8,0,0">
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <Border Padding="8,6" MaxWidth="900" HorizontalAlignment="Left">
+                    <DockPanel>
+                      <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top" Margin="12,0,0,0">
+                        <Button Content="Test" Command="{Binding TestCommand}" Visibility="{Binding TestVisibility}"/>
+                        <Button Content="{Binding ToggleLabel}" Command="{Binding ToggleCommand}"/>
+                      </StackPanel>
+                      <StackPanel>
+                        <TextBlock FontWeight="SemiBold"><Run Text="{Binding Title, Mode=OneWay}"/><Run Text="  "/><Run Text="{Binding StateLabel, Mode=OneWay}" Foreground="{DynamicResource Brush.TextMuted}"/></TextBlock>
+                        <TextBlock Text="{Binding Detail}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextMuted}" FontSize="{StaticResource Size.BodySmall}"/>
+                        <TextBlock Text="{Binding Meta}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextMuted}" FontSize="{StaticResource Size.Caption}"/>
+                        <TextBlock Text="{Binding Note}" Visibility="{Binding NoteVisibility}" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource Brush.Warning}" FontSize="{StaticResource Size.Caption}"/>
+                      </StackPanel>
+                    </DockPanel>
+                  </Border>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </TabItem>
+          <TabItem Header="MCP servers">
+            <DockPanel Margin="0,8,0,0">
+              <StackPanel DockPanel.Dock="Top" Visibility="{Binding McpEditVisibility}">
+                <TextBlock Text="{Binding ConfigStatus}" Visibility="{Binding ConfigStatusVisibility}" TextWrapping="Wrap" Margin="0,0,0,6"
+                           AutomationProperties.Name="Configuration status"/>
+                <Button Content="Add server…" Command="{Binding AddMcpServerCommand}" HorizontalAlignment="Left" AutomationProperties.Name="Add an MCP server"
+                        ToolTip="Writes a new MCP server into this profile's config.yaml. Asks first."/>
+                <Border Visibility="{Binding McpFormVisibility}" Background="{DynamicResource Brush.Well}" CornerRadius="8" Padding="12" Margin="0,8,0,8" MaxWidth="760" HorizontalAlignment="Left">
+                  <StackPanel>
+                    <TextBlock Text="{Binding McpFormTitle}" FontWeight="SemiBold"/>
+                    <TextBlock Text="{Binding McpNote}" Visibility="{Binding McpNoteVisibility}" TextWrapping="Wrap" Margin="0,4,0,6"
+                               Foreground="{DynamicResource Brush.TextMuted}" FontSize="{StaticResource Size.Caption}"/>
+                    <TextBlock Text="Name"/>
+                    <TextBox Text="{Binding McpName, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding McpNameEditable}" AutomationProperties.Name="MCP server name"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,4">
+                      <RadioButton Content="Local command" IsChecked="{Binding McpLocal}" IsEnabled="{Binding McpTransportEditable}" GroupName="McpTransport" Margin="0,0,16,0" AutomationProperties.Name="Local command server"/>
+                      <RadioButton Content="Remote address" IsChecked="{Binding McpRemote}" IsEnabled="{Binding McpTransportEditable}" GroupName="McpTransport" AutomationProperties.Name="Remote address server"/>
+                    </StackPanel>
+                    <StackPanel Visibility="{Binding McpLocalVisibility}">
+                      <TextBlock Text="Command (for example npx)"/>
+                      <TextBox Text="{Binding McpCommand, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="MCP command"/>
+                      <TextBlock Text="Arguments, one per line" Margin="0,6,0,0"/>
+                      <TextBox Text="{Binding McpArgs, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" MinHeight="48" MaxHeight="120" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="MCP arguments"/>
+                      <TextBlock Text="Environment variables, NAME=value per line" Margin="0,6,0,0"/>
+                      <TextBox Text="{Binding McpEnv, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" MinHeight="40" MaxHeight="100" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="MCP environment"/>
+                    </StackPanel>
+                    <StackPanel Visibility="{Binding McpRemoteVisibility}">
+                      <TextBlock Text="Address (https://…)"/>
+                      <TextBox Text="{Binding McpUrl, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="MCP address"/>
+                      <TextBlock Text="Headers, Name: value per line" Margin="0,6,0,0"/>
+                      <TextBox Text="{Binding McpHeaders, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" MinHeight="40" MaxHeight="100" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="MCP headers"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                      <CheckBox Content="Enabled" IsChecked="{Binding McpEnabled}" VerticalAlignment="Center" AutomationProperties.Name="MCP enabled"/>
+                      <TextBlock Text="Timeout (s)" Margin="16,0,4,0" VerticalAlignment="Center"/>
+                      <TextBox Text="{Binding McpTimeout, UpdateSourceTrigger=PropertyChanged}" Width="56" AutomationProperties.Name="MCP timeout"/>
+                      <TextBlock Text="Connect timeout (s)" Margin="12,0,4,0" VerticalAlignment="Center"/>
+                      <TextBox Text="{Binding McpConnectTimeout, UpdateSourceTrigger=PropertyChanged}" Width="56" AutomationProperties.Name="MCP connect timeout"/>
+                    </StackPanel>
+                    <TextBlock Text="{Binding McpProblems}" Visibility="{Binding McpProblemsVisibility}" TextWrapping="Wrap" Margin="0,8,0,0"
+                               Foreground="{DynamicResource Brush.Warning}" AutomationProperties.Name="MCP form problems"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                      <Button Content="Save…" Command="{Binding SaveMcpServerCommand}" Style="{StaticResource AccentButton}" AutomationProperties.Name="Save MCP server"/>
+                      <Button Content="Cancel" Command="{Binding CancelMcpFormCommand}" Margin="8,0,0,0" AutomationProperties.Name="Cancel MCP form"/>
+                    </StackPanel>
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+            <ListBox ItemsSource="{Binding McpRows}" HorizontalContentAlignment="Stretch" AutomationProperties.Name="MCP servers"
+                     VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" Margin="0,8,0,0">
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <Border Padding="8,6" MaxWidth="900" HorizontalAlignment="Left">
+                    <DockPanel>
+                      <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top" Margin="12,0,0,0">
+                        <Button Content="Test" Command="{Binding TestCommand}" Visibility="{Binding TestVisibility}"/>
+                        <Button Content="Edit…" Margin="6,0,0,0" AutomationProperties.Name="Edit MCP server"
+                                Visibility="{Binding DataContext.McpEditVisibility, RelativeSource={RelativeSource AncestorType=Window}}"
+                                Command="{Binding DataContext.EditMcpServerCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
+                        <Button Content="{Binding ToggleLabel}" Command="{Binding ToggleCommand}"/>
+                      </StackPanel>
+                      <StackPanel>
+                        <TextBlock FontWeight="SemiBold"><Run Text="{Binding Title, Mode=OneWay}"/><Run Text="  "/><Run Text="{Binding StateLabel, Mode=OneWay}" Foreground="{DynamicResource Brush.TextMuted}"/></TextBlock>
+                        <TextBlock Text="{Binding Detail}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextMuted}" FontSize="{StaticResource Size.BodySmall}"/>
+                        <TextBlock Text="{Binding Meta}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextMuted}" FontSize="{StaticResource Size.Caption}"/>
+                        <TextBlock Text="{Binding Note}" Visibility="{Binding NoteVisibility}" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource Brush.Warning}" FontSize="{StaticResource Size.Caption}"/>
+                      </StackPanel>
+                    </DockPanel>
+                  </Border>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+            </DockPanel>
+          </TabItem>
+          <TabItem Header="Skills hub">
+            <DockPanel Margin="0,8,0,0">
+              <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                <TextBlock Text="Browse skills from the hub, read them and check their safety. Installing, removing and updating ask you first." TextWrapping="Wrap"
+                           Foreground="{DynamicResource Brush.TextMuted}" FontSize="{StaticResource Size.BodySmall}"/>
+                <TextBlock Text="{Binding HubMessage}" Visibility="{Binding HubMessageVisibility}" TextWrapping="Wrap" Margin="0,6,0,0"
+                           FontWeight="SemiBold" AutomationProperties.Name="Skills hub result"/>
+                <TextBlock Text="{Binding HubStatus}" Visibility="{Binding HubStatusVisibility}" TextWrapping="Wrap" Margin="0,6,0,0"
+                           AutomationProperties.Name="Skills hub status"/>
+                <TextBlock Text="{Binding HubNote}" Visibility="{Binding HubNoteVisibility}" TextWrapping="Wrap" Margin="0,2,0,0"
+                           Foreground="{DynamicResource Brush.Warning}" FontSize="{StaticResource Size.BodySmall}"/>
+                <StackPanel Orientation="Horizontal" Margin="0,8,0,0" Visibility="{Binding HubListVisibility}">
+                  <Button Content="Browse featured" Command="{Binding BrowseHubCommand}" AutomationProperties.Name="Browse featured skills"/>
+                  <TextBox Text="{Binding HubQuery, UpdateSourceTrigger=PropertyChanged}" Width="240" Margin="12,0,0,0" AutomationProperties.Name="Search the skills hub"/>
+                  <Button Content="Search" Command="{Binding SearchHubCommand}" Margin="6,0,0,0" AutomationProperties.Name="Search the hub"/>
+                  <Button Content="Update all" Command="{Binding UpdateAllHubCommand}" Margin="18,0,0,0"
+                          ToolTip="Update every skill installed from the hub on this profile. Asks first." AutomationProperties.Name="Update all hub skills"/>
+                </StackPanel>
+              </StackPanel>
+
+              <DockPanel Visibility="{Binding HubDetailVisibility}">
+                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                  <Button Content="← Back to the hub" Command="{Binding CloseHubDetailCommand}" HorizontalAlignment="Left" AutomationProperties.Name="Back to the hub"/>
+                  <TextBlock Text="{Binding HubDetailTitle}" FontSize="{StaticResource Size.Title}" FontWeight="SemiBold" Margin="0,8,0,0" TextWrapping="Wrap"/>
+                  <TextBlock Text="{Binding HubDetailMeta}" Foreground="{DynamicResource Brush.TextMuted}" FontSize="{StaticResource Size.Caption}" TextWrapping="Wrap"/>
+                  <TextBlock Text="{Binding HubDetailNote}" Visibility="{Binding HubDetailNoteVisibility}" Margin="0,6,0,0" TextWrapping="Wrap"
+                             Foreground="{DynamicResource Brush.TextMuted}" AutomationProperties.Name="Skill detail status"/>
+                  <Border Visibility="{Binding HubScanVisibility}" Background="{DynamicResource Brush.Well}" CornerRadius="6" Padding="10,8" Margin="0,8,0,0">
+                    <StackPanel>
+                      <TextBlock Text="{Binding HubScanVerdict}" TextWrapping="Wrap" FontWeight="SemiBold" AutomationProperties.Name="Safety check result"/>
+                      <ItemsControl ItemsSource="{Binding HubFindings}" Margin="0,6,0,0">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate>
+                            <StackPanel Margin="0,0,0,4">
+                              <TextBlock Text="{Binding Header}" Foreground="{DynamicResource Brush.Warning}" FontSize="{StaticResource Size.Caption}"/>
+                              <TextBlock Text="{Binding Description}" TextWrapping="Wrap" FontFamily="{StaticResource Font.Code}" FontSize="{StaticResource Size.Caption}"/>
+                            </StackPanel>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </StackPanel>
+                  </Border>
+                  <TextBlock Text="{Binding HubDetailFiles}" TextWrapping="Wrap" Margin="0,6,0,0" Foreground="{DynamicResource Brush.TextMuted}"
+                             FontSize="{StaticResource Size.Caption}"/>
+                </StackPanel>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                  <local:MarkdownBlock Markdown="{Binding HubDetailBody}" MaxWidth="820" HorizontalAlignment="Left"/>
+                </ScrollViewer>
+              </DockPanel>
+
+              <ListBox ItemsSource="{Binding HubRows}" Visibility="{Binding HubListVisibility}" HorizontalContentAlignment="Stretch"
+                       AutomationProperties.Name="Hub skills" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
+                <ListBox.ItemTemplate>
+                  <DataTemplate>
+                    <Border Padding="8,6" MaxWidth="900" HorizontalAlignment="Left">
+                      <DockPanel>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top" Margin="12,0,0,0">
+                          <Button Content="Read" Command="{Binding PreviewCommand}" ToolTip="Show this skill's text and files." AutomationProperties.Name="Read skill"/>
+                          <Button Content="Safety check" Command="{Binding CheckSafetyCommand}" Margin="6,0,0,0"
+                                  ToolTip="Ask the gateway to scan this skill. Nothing is installed." AutomationProperties.Name="Safety check"/>
+                          <Button Content="Install" Command="{Binding InstallCommand}" Visibility="{Binding InstallVisibility}" Margin="6,0,0,0"
+                                  ToolTip="Checks the skill's safety, then asks before installing it on your gateway." AutomationProperties.Name="Install skill"/>
+                          <Button Content="Remove" Command="{Binding UninstallCommand}" Visibility="{Binding UninstallVisibility}" Margin="6,0,0,0"
+                                  ToolTip="Remove this skill from the profile. Asks first." AutomationProperties.Name="Remove skill"/>
+                        </StackPanel>
+                        <StackPanel>
+                          <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                          <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextMuted}" FontSize="{StaticResource Size.BodySmall}"/>
+                          <TextBlock Text="{Binding Meta}" Foreground="{DynamicResource Brush.TextMuted}" FontSize="{StaticResource Size.Caption}"/>
+                        </StackPanel>
+                      </DockPanel>
+                    </Border>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+            </DockPanel>
+          </TabItem>
+          <TabItem Header="Settings" Visibility="{Binding ConfigEditorVisibility}">
+            <DockPanel Margin="0,8,0,0">
+              <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                <TextBlock Text="Hermes settings for this profile. Each change is saved on its own, after you confirm, and applies from the next chat. Secrets and lists are not edited here." TextWrapping="Wrap"
+                           Foreground="{DynamicResource Brush.TextMuted}" FontSize="{StaticResource Size.BodySmall}"/>
+                <TextBlock Text="{Binding SettingsStatus}" Visibility="{Binding SettingsStatusVisibility}" TextWrapping="Wrap" Margin="0,4,0,0"
+                           AutomationProperties.Name="Settings status"/>
+                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                  <Button Content="Load" Command="{Binding LoadSettingsCommand}" AutomationProperties.Name="Load settings"/>
+                  <TextBox Text="{Binding SettingsQuery, UpdateSourceTrigger=PropertyChanged}" Width="260" Margin="12,0,0,0"
+                           ToolTip="Search by name, description or category" AutomationProperties.Name="Search settings"/>
+                </StackPanel>
+              </StackPanel>
+              <ListBox ItemsSource="{Binding SettingRows}" HorizontalContentAlignment="Stretch" AutomationProperties.Name="Settings list"
+                       VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
+                <ListBox.ItemTemplate>
+                  <DataTemplate>
+                    <Border Padding="8,6" MaxWidth="900" HorizontalAlignment="Left">
+                      <DockPanel>
+                        <StackPanel DockPanel.Dock="Right" Width="280" Margin="12,0,0,0">
+                          <CheckBox IsChecked="{Binding EditBool}" Visibility="{Binding BoolVisibility}" Content="On" AutomationProperties.Name="Setting switch"/>
+                          <ComboBox ItemsSource="{Binding Options}" SelectedItem="{Binding EditText, Mode=TwoWay}" Visibility="{Binding SelectVisibility}" AutomationProperties.Name="Setting choice"/>
+                          <TextBox Text="{Binding EditText, UpdateSourceTrigger=PropertyChanged}" Visibility="{Binding TextVisibility}" AutomationProperties.Name="Setting value"/>
+                          <TextBlock Text="{Binding ReadOnlyText}" Visibility="{Binding ReadOnlyVisibility}" TextWrapping="Wrap"
+                                     Foreground="{DynamicResource Brush.TextMuted}" FontSize="{StaticResource Size.Caption}"/>
+                          <Button Content="Save…" Command="{Binding SaveCommand}" Visibility="{Binding SaveVisibility}" HorizontalAlignment="Left" Margin="0,4,0,0"
+                                  Style="{StaticResource AccentButton}" AutomationProperties.Name="Save setting"/>
+                          <TextBlock Text="{Binding Error}" Visibility="{Binding ErrorVisibility}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.Warning}" FontSize="{StaticResource Size.Caption}"/>
+                        </StackPanel>
+                        <StackPanel>
+                          <TextBlock FontWeight="SemiBold" TextTrimming="CharacterEllipsis"><Run Text="{Binding Path, Mode=OneWay}"/><Run Text="   "/><Run Text="{Binding Category, Mode=OneWay}" Foreground="{DynamicResource Brush.TextMuted}"/></TextBlock>
+                          <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextMuted}" FontSize="{StaticResource Size.BodySmall}"/>
+                        </StackPanel>
+                      </DockPanel>
+                    </Border>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+            </DockPanel>
+          </TabItem>
+          <TabItem Header="Config" Visibility="{Binding ConfigEditorVisibility}">
+            <DockPanel Margin="0,8,0,0">
+              <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                <TextBlock Text="The profile's config.yaml, exactly as it is on the gateway. A change here can stop Hermes working or change what the agent can reach, for everyone using this profile." TextWrapping="Wrap"
+                           Foreground="{DynamicResource Brush.Warning}" FontSize="{StaticResource Size.BodySmall}"/>
+                <TextBlock Text="{Binding ConfigPath}" Foreground="{DynamicResource Brush.TextMuted}" FontSize="{StaticResource Size.Caption}" Margin="0,4,0,0"/>
+                <TextBlock Text="{Binding ConfigStatus}" Visibility="{Binding ConfigStatusVisibility}" TextWrapping="Wrap" Margin="0,4,0,0"
+                           AutomationProperties.Name="Configuration status"/>
+                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                  <Button Content="Load" Command="{Binding LoadConfigCommand}" AutomationProperties.Name="Load config.yaml"/>
+                  <Button Content="Save…" Command="{Binding SaveConfigCommand}" Margin="8,0,0,0" Style="{StaticResource AccentButton}"
+                          ToolTip="Replaces the whole file. Checks it has not changed meanwhile, keeps a copy of the old one on this PC, and asks first."
+                          AutomationProperties.Name="Save config.yaml"/>
+                </StackPanel>
+              </StackPanel>
+              <TextBox Text="{Binding ConfigYaml, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" AcceptsTab="False" TextWrapping="NoWrap"
+                       HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" FontFamily="{StaticResource Font.Code}"
+                       FontSize="{StaticResource Size.BodySmall}" AutomationProperties.Name="config.yaml text"/>
+            </DockPanel>
+          </TabItem>
+        </TabControl>
+      </DockPanel>
+
+      <Grid Grid.Row="1" Visibility="{Binding RoomsVisibility}" Margin="24,12">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="260"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <DockPanel Grid.Column="0" Margin="0,0,16,0">
+          <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+            <TextBlock Text="Rooms" FontSize="{StaticResource Size.Title}" FontWeight="SemiBold"/>
+            <TextBlock Text="{Binding RoomsStatus}" Visibility="{Binding RoomsStatusVisibility}" TextWrapping="Wrap" Margin="0,6,0,0"
+                       Foreground="{DynamicResource Brush.Warning}" FontSize="{StaticResource Size.BodySmall}" AutomationProperties.Name="Rooms status"/>
+            <Button Content="Refresh" Command="{Binding RefreshRoomsCommand}" HorizontalAlignment="Left" Margin="0,8,0,0"
+                    AutomationProperties.Name="Refresh rooms"/>
+          </StackPanel>
+          <ListBox ItemsSource="{Binding HostedRooms}" SelectedItem="{Binding SelectedHostedRoom, Mode=TwoWay}"
+                   HorizontalContentAlignment="Stretch" AutomationProperties.Name="Hosted rooms">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <StackPanel Margin="4,4">
+                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                  <TextBlock Text="{Binding Summary}" Foreground="{DynamicResource Brush.TextMuted}" FontSize="{StaticResource Size.Caption}"
+                             TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </DockPanel>
+
+        <TextBlock Grid.Column="1" Text="Choose a room." Visibility="{Binding RoomPickVisibility}" Foreground="{DynamicResource Brush.TextMuted}"/>
+
+        <DockPanel Grid.Column="1" Visibility="{Binding RoomOpenVisibility}">
+          <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+            <DockPanel>
+              <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <Button Content="Stop room" Command="{Binding StopRoomCommand}" Style="{StaticResource CompactChip}"
+                        ToolTip="Ask every member to stop what they are doing." AutomationProperties.Name="Stop room"/>
+                <Button Content="Rename" Command="{Binding RenameRoomCommand}" Style="{StaticResource CompactChip}" Margin="6,0,0,0"
+                        AutomationProperties.Name="Rename room"/>
+                <Button Content="Delete…" Command="{Binding DeleteRoomCommand}" Style="{StaticResource CompactChip}" Margin="6,0,0,0"
+                        ToolTip="Delete this room for everyone. This cannot be undone." AutomationProperties.Name="Delete room"/>
+              </StackPanel>
+              <TextBlock Text="{Binding RoomTitle}" FontSize="{StaticResource Size.Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+            </DockPanel>
+            <TextBlock Text="{Binding RoomMembersLine}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextMuted}"
+                       FontSize="{StaticResource Size.Caption}" Margin="0,2,0,0" AutomationProperties.Name="Room members"/>
+          </StackPanel>
+
+          <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
+            <TextBlock Text="{Binding RoomStatus}" Visibility="{Binding RoomStatusVisibility}" TextWrapping="Wrap" Margin="0,0,0,6"
+                       Foreground="{DynamicResource Brush.Warning}" AutomationProperties.Name="Room status"/>
+            <TextBlock Text="{Binding RoomWaitingLine}" Visibility="{Binding RoomWaitingVisibility}" Margin="0,0,0,6"
+                       Foreground="{DynamicResource Brush.TextMuted}" AutomationProperties.Name="Room activity"/>
+            <ItemsControl ItemsSource="{Binding RoomMentionChoices}" Visibility="{Binding RoomMentionVisibility}" Margin="0,0,0,6"
+                          AutomationProperties.Name="Mention choices">
+              <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Button Content="{Binding Label}" Style="{StaticResource CompactChip}" Margin="0,0,6,4"
+                          Command="{Binding DataContext.PickRoomMentionCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                          CommandParameter="{Binding}"/>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <DockPanel>
+              <Button DockPanel.Dock="Right" Content="Send" Command="{Binding SendRoomMessageCommand}" Margin="8,0,0,0"
+                      AutomationProperties.Name="Send to room"/>
+              <TextBox x:Name="RoomComposerBox" Text="{Binding RoomComposerText, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True"
+                       TextWrapping="Wrap" MinHeight="40" MaxHeight="140" VerticalScrollBarVisibility="Auto"
+                       ToolTip="Type @ to ask a member. With no @, every member is asked."
+                       AutomationProperties.Name="Message to the room" SelectionChanged="RoomComposer_SelectionChanged"/>
+            </DockPanel>
+          </StackPanel>
+
+          <ItemsControl DockPanel.Dock="Bottom" ItemsSource="{Binding RoomPending}" Visibility="{Binding RoomPendingVisibility}" Margin="0,8,0,0"
+                        AutomationProperties.Name="Waiting on you">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Border Background="{DynamicResource Brush.Well}" CornerRadius="6" Padding="10,8" Margin="0,0,0,6">
+                  <StackPanel>
+                    <TextBlock Text="{Binding Title}" TextWrapping="Wrap" FontWeight="SemiBold"/>
+                    <TextBox Text="{Binding Detail, Mode=OneWay}" Visibility="{Binding DetailVisibility}" IsReadOnly="True" TextWrapping="Wrap"
+                             BorderThickness="0" Background="Transparent" FontFamily="{StaticResource Font.Code}" Margin="0,4,0,0"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0" Visibility="{Binding ApprovalVisibility}">
+                      <Button Content="Allow once" Style="{StaticResource CompactChip}" AutomationProperties.Name="Allow once"
+                              ToolTip="Let this one command run. It is not remembered."
+                              Command="{Binding DataContext.AllowRoomApprovalCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
+                      <Button Content="Deny" Style="{StaticResource CompactChip}" Margin="6,0,0,0" AutomationProperties.Name="Deny"
+                              Command="{Binding DataContext.DenyRoomApprovalCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
+                    </StackPanel>
+                    <Button Content="Try again" Style="{StaticResource CompactChip}" HorizontalAlignment="Left" Margin="0,6,0,0"
+                            Visibility="{Binding RetryVisibility}" AutomationProperties.Name="Try the turn again"
+                            Command="{Binding DataContext.RetryRoomTurnCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <ScrollViewer x:Name="RoomScroll" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Room transcript">
+            <ItemsControl ItemsSource="{Binding RoomTranscriptLines}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <StackPanel Margin="0,0,0,10" MaxWidth="760" HorizontalAlignment="Left">
+                    <TextBlock Text="{Binding Speaker}" Visibility="{Binding SpeakerVisibility}" Foreground="{DynamicResource Brush.TextMuted}"
+                               FontSize="{StaticResource Size.Caption}"/>
+                    <TextBox Text="{Binding Text, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" BorderThickness="0" Background="Transparent"
+                             Foreground="{DynamicResource Brush.Text}"/>
+                  </StackPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </DockPanel>
+      </Grid>
+
+      <Grid Grid.Row="1" Visibility="{Binding ArtifactsVisibility}" Margin="24,12">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+        <DockPanel Grid.Column="0">
+          <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+            <TextBlock Text="Artifacts" FontSize="{StaticResource Size.Title}" FontWeight="SemiBold"/>
+            <TextBlock Text="{Binding ArtifactStatus}" Visibility="{Binding ArtifactStatusVisibility}" TextWrapping="Wrap" Margin="0,4,0,8"
+                       Foreground="{DynamicResource Brush.TextMuted}" AutomationProperties.Name="Artifacts status"/>
+            <StackPanel Orientation="Horizontal">
+              <Button Content="Scan recent chats" Command="{Binding ScanArtifactsCommand}"
+                      ToolTip="Reads your most recent chats on the gateway to find pictures, files and links. Nothing is downloaded until you choose Save or Preview."
+                      AutomationProperties.Name="Scan recent chats"/>
+              <Button Content="All" Command="{Binding SetArtifactFilterCommand}" CommandParameter="All" Style="{StaticResource CompactChip}" Margin="12,0,0,0"/>
+              <Button Content="Pictures" Command="{Binding SetArtifactFilterCommand}" CommandParameter="Images" Style="{StaticResource CompactChip}" Margin="6,0,0,0"/>
+              <Button Content="Files" Command="{Binding SetArtifactFilterCommand}" CommandParameter="Files" Style="{StaticResource CompactChip}" Margin="6,0,0,0"/>
+              <Button Content="Links" Command="{Binding SetArtifactFilterCommand}" CommandParameter="Links" Style="{StaticResource CompactChip}" Margin="6,0,0,0"/>
+              <TextBox Text="{Binding ArtifactSearch, UpdateSourceTrigger=PropertyChanged}" Width="200" Margin="12,0,0,0"
+                       ToolTip="Search by name, address or chat" AutomationProperties.Name="Search artifacts"/>
+            </StackPanel>
+          </StackPanel>
+          <ListBox ItemsSource="{Binding ArtifactRows}" HorizontalContentAlignment="Stretch" AutomationProperties.Name="Artifact list"
+                   VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <Border Padding="8,6" MaxWidth="900" HorizontalAlignment="Left">
+                  <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top" Margin="12,0,0,0">
+                      <Button Content="Preview" Command="{Binding PreviewCommand}" Visibility="{Binding PreviewVisibility}" AutomationProperties.Name="Preview"/>
+                      <Button Content="Save…" Command="{Binding SaveCommand}" Visibility="{Binding SaveVisibility}" Margin="6,0,0,0" AutomationProperties.Name="Save"/>
+                      <Button Content="Copy link" Command="{Binding CopyCommand}" Visibility="{Binding CopyVisibility}" Margin="6,0,0,0" AutomationProperties.Name="Copy link"/>
+                      <Button Content="Open chat" Command="{Binding OpenChatCommand}" Margin="6,0,0,0" AutomationProperties.Name="Open the chat"/>
+                    </StackPanel>
+                    <StackPanel>
+                      <TextBlock FontWeight="SemiBold" TextTrimming="CharacterEllipsis"><Run Text="{Binding Name, Mode=OneWay}"/><Run Text="  "/><Run Text="{Binding KindLabel, Mode=OneWay}" Foreground="{DynamicResource Brush.TextMuted}"/></TextBlock>
+                      <TextBlock Text="{Binding Detail}" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource Brush.TextMuted}" FontSize="{StaticResource Size.Caption}"/>
+                      <TextBlock Text="{Binding Note}" Visibility="{Binding NoteVisibility}" TextWrapping="Wrap"
+                                 Foreground="{DynamicResource Brush.Warning}" FontSize="{StaticResource Size.Caption}"/>
+                    </StackPanel>
+                  </DockPanel>
+                </Border>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </DockPanel>
+        <Border Grid.Column="1" Visibility="{Binding ArtifactPreviewVisibility}" Margin="16,0,0,0" Padding="10" Width="360"
+                Background="{DynamicResource Brush.Well}" CornerRadius="8" VerticalAlignment="Top">
+          <StackPanel>
+            <DockPanel>
+              <Button DockPanel.Dock="Right" Content="Close" Command="{Binding ClearArtifactPreviewCommand}" Style="{StaticResource CompactChip}"
+                      AutomationProperties.Name="Close preview"/>
+              <TextBlock Text="{Binding ArtifactPreviewName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+            </DockPanel>
+            <Image Source="{Binding ArtifactPreviewImage}" Stretch="Uniform" MaxHeight="420" Margin="0,8,0,0"
+                   AutomationProperties.Name="Picture preview"/>
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <DockPanel Grid.Row="1" Visibility="{Binding JourneyVisibility}" Margin="24,12">
+        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+          <TextBlock Text="Journey" FontSize="{StaticResource Size.Title}" FontWeight="SemiBold"/>
+          <TextBlock Text="{Binding JourneySummary}" Foreground="{DynamicResource Brush.TextMuted}" TextWrapping="Wrap" Margin="0,4,0,0"
+                     AutomationProperties.Name="Journey summary"/>
+          <TextBlock Text="{Binding JourneyProfileLabel}" Foreground="{DynamicResource Brush.TextMuted}" FontSize="{StaticResource Size.Caption}"/>
+          <TextBlock Text="{Binding JourneyStatus}" Visibility="{Binding JourneyStatusVisibility}" TextWrapping="Wrap" Margin="0,6,0,0"
+                     Foreground="{DynamicResource Brush.Warning}" AutomationProperties.Name="Journey status"/>
+          <StackPanel Orientation="Horizontal" Margin="0,8,0,0" Visibility="{Binding JourneyListVisibility}">
+            <Button Content="Refresh" Command="{Binding RefreshJourneyCommand}" AutomationProperties.Name="Refresh journey"/>
+            <Button Content="All" Command="{Binding SetJourneyFilterCommand}" CommandParameter="All" Style="{StaticResource CompactChip}" Margin="12,0,0,0"/>
+            <Button Content="Used" Command="{Binding SetJourneyFilterCommand}" CommandParameter="Used" Style="{StaticResource CompactChip}" Margin="6,0,0,0"
+                    ToolTip="Skills the agent has run."/>
+            <Button Content="Learned" Command="{Binding SetJourneyFilterCommand}" CommandParameter="Learned" Style="{StaticResource CompactChip}" Margin="6,0,0,0"
+                    ToolTip="Memories, and skills not used yet."/>
+          </StackPanel>
+        </StackPanel>
+
+        <DockPanel Visibility="{Binding JourneyDetailVisibility}">
+          <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+            <Button Content="← Back to the journey" Command="{Binding CloseJourneyNodeCommand}" HorizontalAlignment="Left"
+                    AutomationProperties.Name="Back to the journey"/>
+            <TextBlock Text="{Binding JourneyDetailTitle}" FontSize="{StaticResource Size.Title}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,8,0,0"/>
+            <TextBlock Text="{Binding JourneyDetailSubtitle}" Foreground="{DynamicResource Brush.TextMuted}" FontSize="{StaticResource Size.Caption}"/>
+            <TextBlock Text="{Binding JourneyDetailNote}" Visibility="{Binding JourneyDetailNoteVisibility}" Margin="0,6,0,0"
+                       Foreground="{DynamicResource Brush.TextMuted}" AutomationProperties.Name="Journey detail status"/>
+          </StackPanel>
+          <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <local:MarkdownBlock Markdown="{Binding JourneyDetailText}" MaxWidth="820" HorizontalAlignment="Left"/>
+          </ScrollViewer>
+        </DockPanel>
+
+        <ScrollViewer Visibility="{Binding JourneyListVisibility}" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Journey timeline">
+          <ItemsControl ItemsSource="{Binding JourneyMonths}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <StackPanel Margin="0,10,0,0" MaxWidth="900" HorizontalAlignment="Left">
+                  <TextBlock Text="{Binding Label}" FontWeight="SemiBold" Foreground="{DynamicResource Brush.TextMuted}"
+                             FontSize="{StaticResource Size.Caption}" AutomationProperties.HeadingLevel="Level2"/>
+                  <ItemsControl ItemsSource="{Binding Nodes}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <Button Command="{Binding OpenCommand}" CommandParameter="{Binding}" HorizontalContentAlignment="Stretch"
+                                Background="Transparent" BorderThickness="0" Padding="6,5" AutomationProperties.Name="Open journey item">
+                          <DockPanel>
+                            <TextBlock DockPanel.Dock="Left" Text="{Binding Glyph}" Width="24" Opacity="0.7" VerticalAlignment="Top"/>
+                            <TextBlock DockPanel.Dock="Right" Text="📌" Visibility="{Binding PinnedVisibility}" ToolTip="Pinned" Margin="8,0,0,0"/>
+                            <StackPanel>
+                              <TextBlock Text="{Binding Title}" TextWrapping="Wrap" TextAlignment="Left"/>
+                              <TextBlock Text="{Binding DetailLine}" Foreground="{DynamicResource Brush.TextMuted}" FontSize="{StaticResource Size.Caption}" TextAlignment="Left"/>
+                            </StackPanel>
+                          </DockPanel>
+                        </Button>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </DockPanel>
+
+      <ScrollViewer Grid.Row="1" Visibility="{Binding InsightsVisibility}" Margin="24,12" VerticalScrollBarVisibility="Auto">
+        <StackPanel MaxWidth="900" HorizontalAlignment="Left">
+          <TextBlock Text="Insights" FontSize="{StaticResource Size.Title}" FontWeight="SemiBold"/>
+          <TextBlock Text="{Binding InsightsProfileLabel}" Foreground="{DynamicResource Brush.TextMuted}" Margin="0,4,0,8" FontSize="{StaticResource Size.BodySmall}"/>
+          <TextBlock Text="{Binding InsightsStatus}" Visibility="{Binding InsightsStatusVisibility}" TextWrapping="Wrap" Margin="0,0,0,8"
+                     Foreground="{DynamicResource Brush.Warning}" AutomationProperties.Name="Insights status"/>
+          <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+            <Button Content="7 days" Command="{Binding SetInsightsPeriodCommand}" CommandParameter="7"/>
+            <Button Content="30 days" Command="{Binding SetInsightsPeriodCommand}" CommandParameter="30"/>
+            <Button Content="90 days" Command="{Binding SetInsightsPeriodCommand}" CommandParameter="90"/>
+            <Button Content="Refresh" Command="{Binding RefreshInsightsCommand}" AutomationProperties.Name="Refresh insights"/>
+          </StackPanel>
+          <TextBlock Text="{Binding InsightsSummary}" TextWrapping="Wrap" Margin="0,0,0,12" AutomationProperties.Name="Usage summary"/>
+          <TextBlock Text="Tokens per day" FontWeight="SemiBold" Margin="0,0,0,4"/>
+          <ItemsControl ItemsSource="{Binding UsageBars}" Height="110" Margin="0,0,0,16" AutomationProperties.Name="Tokens per day chart">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Grid ToolTip="{Binding Tooltip}">
+                  <Border Height="{Binding BarHeight}" VerticalAlignment="Bottom" Margin="1,0" MinWidth="2"
+                          Background="{DynamicResource Brush.Accent}" CornerRadius="2,2,0,0"/>
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <WrapPanel>
+            <StackPanel Margin="0,0,24,16" MinWidth="220">
+              <TextBlock Text="Top models" FontWeight="SemiBold" Margin="0,0,0,4"/>
+              <ItemsControl ItemsSource="{Binding ModelLines}" AutomationProperties.Name="Top models">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <DockPanel Margin="0,1">
+                      <TextBlock Text="{Binding Value}" DockPanel.Dock="Right" Margin="12,0,0,0" Foreground="{DynamicResource Brush.TextMuted}"/>
+                      <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis"/>
+                    </DockPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+            <StackPanel Margin="0,0,24,16" MinWidth="220">
+              <TextBlock Text="Top tools" FontWeight="SemiBold" Margin="0,0,0,4"/>
+              <ItemsControl ItemsSource="{Binding ToolLines}" AutomationProperties.Name="Top tools">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <DockPanel Margin="0,1">
+                      <TextBlock Text="{Binding Value}" DockPanel.Dock="Right" Margin="12,0,0,0" Foreground="{DynamicResource Brush.TextMuted}"/>
+                      <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis"/>
+                    </DockPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+            <StackPanel Margin="0,0,24,16" MinWidth="220">
+              <TextBlock Text="Top skills" FontWeight="SemiBold" Margin="0,0,0,4"/>
+              <ItemsControl ItemsSource="{Binding SkillLines}" AutomationProperties.Name="Top skills">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <DockPanel Margin="0,1">
+                      <TextBlock Text="{Binding Value}" DockPanel.Dock="Right" Margin="12,0,0,0" Foreground="{DynamicResource Brush.TextMuted}"/>
+                      <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis"/>
+                    </DockPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </WrapPanel>
+        </StackPanel>
+      </ScrollViewer>
+
+      <DockPanel Grid.Row="1" Visibility="{Binding NeedsYouVisibility}" Margin="24,12">
+        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+          <TextBlock Text="Needs you" FontSize="{StaticResource Size.Title}" FontWeight="SemiBold"/>
+          <TextBlock Text="Approvals and questions (separate from cron Inbox). Secret values are never logged or cached."
+                     Foreground="{DynamicResource Brush.TextMuted}" TextWrapping="Wrap" Margin="0,4,0,8"
+                     FontSize="{StaticResource Size.BodySmall}"/>
+          <TextBlock Text="{Binding NeedsYouStatus}" Visibility="{Binding NeedsYouStatusVisibility}" TextWrapping="Wrap"
+                     Foreground="{DynamicResource Brush.Danger}" AutomationProperties.LiveSetting="Assertive"/>
+        </StackPanel>
+        <ListBox ItemsSource="{Binding NeedsYouItems}" VirtualizingPanel.IsVirtualizing="True"
+                 AutomationProperties.Name="Needs you requests">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <Border Background="{DynamicResource Brush.SurfaceRaised}" CornerRadius="10" Padding="12" Margin="0,0,0,10"
+                      BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1">
+                <StackPanel MaxWidth="900">
+                  <TextBlock Text="{Binding Title}" FontWeight="SemiBold"/>
+                  <TextBlock Text="{Binding Body}" TextWrapping="Wrap" Margin="0,6,0,10"
+                             FontFamily="{StaticResource Font.Code}" FontSize="{StaticResource Size.BodySmall}"/>
+                  <StackPanel Orientation="Horizontal" Visibility="{Binding IsApproval, Converter={StaticResource BoolToVis}}">
+                    <Button Content="Allow once" Command="{Binding DataContext.AnswerOnceCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                            CommandParameter="{Binding}" Style="{StaticResource AccentButton}"/>
+                    <Button Content="Deny" Command="{Binding DataContext.AnswerDenyCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                            CommandParameter="{Binding}"/>
+                  </StackPanel>
+                  <StackPanel Visibility="{Binding IsClarify, Converter={StaticResource BoolToVis}}">
+                    <TextBox Text="{Binding DataContext.ClarifyAnswer, RelativeSource={RelativeSource AncestorType=Window}, UpdateSourceTrigger=PropertyChanged}"
+                             MinHeight="40"/>
+                    <Button Content="Send answer" Margin="0,6,0,0"
+                            Command="{Binding DataContext.AnswerClarifyCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                            CommandParameter="{Binding}" Style="{StaticResource AccentButton}"/>
+                  </StackPanel>
+                  <StackPanel Visibility="{Binding IsSecret, Converter={StaticResource BoolToVis}}">
+                    <PasswordBox x:Name="SecretBox" MinHeight="36"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                      <Button Content="Submit" Click="SecretSubmit_Click" Tag="{Binding}" Style="{StaticResource AccentButton}"/>
+                      <Button Content="Decline" Command="{Binding DataContext.DeclineSecretCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                              CommandParameter="{Binding}"/>
+                    </StackPanel>
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </DockPanel>
+
+      <DockPanel Grid.Row="1" Visibility="{Binding ProjectsVisibility}" Margin="24,12"
+                 AutomationProperties.Name="Projects workspace">
+        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+          <TextBlock Text="Projects" FontSize="{StaticResource Size.Title}" FontWeight="SemiBold"/>
+          <TextBlock Text="{Binding ProjectHonesty}" Foreground="{DynamicResource Brush.TextMuted}"
+                     TextWrapping="Wrap" Margin="0,4,0,6" FontSize="{StaticResource Size.Caption}"/>
+          <TextBlock Text="{Binding ProjectRootLabel}" TextWrapping="Wrap" Margin="0,0,0,6"
+                     FontFamily="{StaticResource Font.Code}" FontSize="{StaticResource Size.BodySmall}"
+                     AutomationProperties.Name="Granted folder path"/>
+          <TextBlock Text="{Binding ProjectStatus}" Foreground="{DynamicResource Brush.Warning}"
+                     TextWrapping="Wrap" Margin="0,0,0,6" FontSize="{StaticResource Size.Caption}"/>
+          <TextBlock Text="{Binding SecretShareWarning}" Foreground="{DynamicResource Brush.TextMuted}"
+                     TextWrapping="Wrap" Margin="0,0,0,8" FontSize="{StaticResource Size.Caption}"/>
+          <WrapPanel Margin="0,0,0,8">
+            <Button Content="Grant folder…" Command="{Binding GrantFolderCommand}" Style="{StaticResource AccentButton}" Margin="0,0,6,6"/>
+            <Button Content="Revoke grant" Command="{Binding RevokeFolderCommand}" Style="{StaticResource CompactChip}" Margin="0,0,6,6"/>
+            <Button Content="{Binding ProjectWriteLabel}" Command="{Binding ToggleProjectWriteCommand}" Style="{StaticResource CompactChip}" Margin="0,0,6,6"/>
+            <Button Content="Refresh" Command="{Binding RefreshProjectCommand}" Style="{StaticResource CompactChip}" Margin="0,0,6,6"/>
+            <Button Content="Enable local terminal…" Command="{Binding EnableTerminalOptInCommand}" Style="{StaticResource CompactChip}" Margin="0,0,6,6"
+                    ToolTip="Separate security boundary — not limited to folder grant"
+                    AutomationProperties.Name="Enable local terminal opt-in"/>
+            <Button Content="Revoke terminal" Command="{Binding RevokeTerminalOptInCommand}" Style="{StaticResource CompactChip}" Margin="0,0,6,6"
+                    AutomationProperties.Name="Revoke local terminal opt-in"/>
+            <Button Content="{Binding TerminalDrawerToggleLabel}" Command="{Binding ToggleTerminalDrawerCommand}" Style="{StaticResource CompactChip}" Margin="0,0,6,6"
+                    AutomationProperties.Name="Toggle terminal drawer"/>
+            <Button Content="Remote terminal…" Command="{Binding ShowRemoteTerminalUnavailableCommand}" Style="{StaticResource CompactChip}" Margin="0,0,6,6"
+                    AutomationProperties.Name="Remote terminal unavailable"/>
+          </WrapPanel>
+          <TextBlock Text="{Binding TerminalOptInLabel}" Foreground="{DynamicResource Brush.TextMuted}"
+                     FontSize="{StaticResource Size.Caption}" Margin="0,0,0,6"
+                     AutomationProperties.Name="Terminal opt-in status"/>
+          <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+            <Button Content="Files" Command="{Binding ShowProjectFilesTabCommand}" Style="{StaticResource CompactChip}"/>
+            <Button Content="Preview" Command="{Binding ShowProjectPreviewTabCommand}" Style="{StaticResource CompactChip}"/>
+            <Button Content="Changes" Command="{Binding ShowProjectChangesTabCommand}" Style="{StaticResource CompactChip}"
+                    ToolTip="Stage exact files, Save checkpoint (local commit), separate working copies — not push or terminal"/>
+          </StackPanel>
+          <TextBlock Text="{Binding GitBranchLabel}" Foreground="{DynamicResource Brush.TextMuted}"
+                     FontSize="{StaticResource Size.Caption}" Margin="0,0,0,4"/>
+          <TextBlock Text="{Binding GitSafetyLabel}" Foreground="{DynamicResource Brush.TextMuted}"
+                     TextWrapping="Wrap" FontSize="{StaticResource Size.Caption}" Margin="0,0,0,4"
+                     AutomationProperties.Name="Git safety assessment"/>
+          <TextBlock Text="{Binding LastCheckpointResult}" Foreground="{DynamicResource Brush.Accent}"
+                     TextWrapping="Wrap" FontSize="{StaticResource Size.Caption}" Margin="0,0,0,4"
+                     AutomationProperties.Name="Last local checkpoint result"/>
+        </StackPanel>
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="1.2*"/>
+          </Grid.ColumnDefinitions>
+          <ListBox Grid.Column="0" Margin="0,0,10,0"
+                   ItemsSource="{Binding ProjectFiles}" SelectedItem="{Binding SelectedProjectFile}"
+                   Visibility="{Binding ProjectFilesTabVisibility}"
+                   ItemContainerStyle="{StaticResource ConversationItem}"
+                   VirtualizingPanel.IsVirtualizing="True"
+                   AutomationProperties.Name="Project files"
+                   MouseLeftButtonUp="ProjectFile_Click">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <StackPanel Margin="2,4">
+                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                  <TextBlock Text="{Binding Meta}" Foreground="{DynamicResource Brush.TextMuted}"
+                             FontSize="{StaticResource Size.Caption}"/>
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <DockPanel Grid.Column="0" Margin="0,0,10,0" Visibility="{Binding ProjectChangesTabVisibility}">
+            <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
+              <WrapPanel Margin="0,0,0,6">
+                <Button Content="Stage selected" Command="{Binding StageSelectedCommand}" Style="{StaticResource CompactChip}" Margin="0,0,6,6"
+                        AutomationProperties.Name="Stage selected files"/>
+                <Button Content="Unstage selected" Command="{Binding UnstageSelectedCommand}" Style="{StaticResource CompactChip}" Margin="0,0,6,6"
+                        AutomationProperties.Name="Unstage selected files"/>
+              </WrapPanel>
+              <TextBlock Text="Checkpoint message" FontSize="{StaticResource Size.Caption}" Margin="0,0,0,2"/>
+              <TextBox Text="{Binding CommitMessage, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6"
+                       AutomationProperties.Name="Checkpoint commit message"/>
+              <WrapPanel Margin="0,0,0,8">
+                <Button Content="Save checkpoint…" Command="{Binding SaveCheckpointCommand}" Style="{StaticResource AccentButton}" Margin="0,0,6,6"
+                        ToolTip="Local Git commit only — never push"
+                        AutomationProperties.Name="Save checkpoint local commit"/>
+              </WrapPanel>
+              <TextBlock Text="{Binding LastCheckpointResult}" TextWrapping="Wrap" Margin="0,0,0,6"
+                         FontSize="{StaticResource Size.Caption}" Foreground="{DynamicResource Brush.TextMuted}"/>
+              <TextBlock Text="Push to remote (separate)" FontWeight="SemiBold" Margin="0,4,0,2"/>
+              <TextBlock Text="{Binding NetworkPublishLabel}" FontSize="{StaticResource Size.Caption}" Margin="0,0,0,4"
+                         TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextMuted}"/>
+              <WrapPanel Margin="0,0,0,4">
+                <Button Content="Enable network publish…" Command="{Binding EnableNetworkPublishCommand}" Style="{StaticResource CompactChip}" Margin="0,0,6,6"
+                        ToolTip="Separate from folder grant — required before push"
+                        AutomationProperties.Name="Enable network publish grant"/>
+                <Button Content="Revoke network publish" Command="{Binding RevokeNetworkPublishCommand}" Style="{StaticResource CompactChip}" Margin="0,0,6,6"
+                        AutomationProperties.Name="Revoke network publish grant"/>
+              </WrapPanel>
+              <WrapPanel Margin="0,0,0,4">
+                <Button Content="Push preview…" Command="{Binding PreviewPushCommand}" Style="{StaticResource CompactChip}" Margin="0,0,6,6"
+                        ToolTip="Shows exact branch, revision, and remote — does not publish"
+                        AutomationProperties.Name="Push preview exact remote"/>
+                <Button Content="Confirm push…" Command="{Binding ConfirmPushCommand}" Style="{StaticResource AccentButton}" Margin="0,0,6,6"
+                        ToolTip="Publishes after explicit confirmation and revalidation"
+                        AutomationProperties.Name="Confirm guided push"/>
+              </WrapPanel>
+              <TextBlock Text="{Binding PushPreviewLabel}" TextWrapping="Wrap" Margin="0,0,0,4"
+                         FontSize="{StaticResource Size.Caption}" FontFamily="{StaticResource Font.Code}"/>
+              <TextBlock Text="{Binding LastPushResult}" TextWrapping="Wrap" Margin="0,0,0,8"
+                         FontSize="{StaticResource Size.Caption}" Foreground="{DynamicResource Brush.TextMuted}"/>
+              <TextBlock Text="Create pull request (after verified push)" FontWeight="SemiBold" Margin="0,4,0,2"/>
+              <TextBlock Text="Title" FontSize="{StaticResource Size.Caption}"/>
+              <TextBox Text="{Binding PrTitle, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,4"
+                       AutomationProperties.Name="Pull request title"/>
+              <TextBlock Text="Base branch" FontSize="{StaticResource Size.Caption}"/>
+              <TextBox Text="{Binding PrBaseBranch, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,4"
+                       AutomationProperties.Name="Pull request base branch"/>
+              <TextBlock Text="Body" FontSize="{StaticResource Size.Caption}"/>
+              <TextBox Text="{Binding PrBody, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,4" AcceptsReturn="True" Height="48"
+                       TextWrapping="Wrap" AutomationProperties.Name="Pull request body"/>
+              <Button Content="Create PR…" Command="{Binding CreatePullRequestCommand}" Style="{StaticResource CompactChip}" Margin="0,0,6,6"
+                      ToolTip="Requires verified push; setup-required when GitHub auth is not configured"
+                      AutomationProperties.Name="Create pull request"/>
+              <TextBlock Text="Separate working copy (worktree)" FontWeight="SemiBold" Margin="0,8,0,4"/>
+              <TextBlock Text="Branch" FontSize="{StaticResource Size.Caption}"/>
+              <TextBox Text="{Binding WorktreeBranch, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,4"
+                       AutomationProperties.Name="Worktree branch name"/>
+              <TextBlock Text="Base revision" FontSize="{StaticResource Size.Caption}"/>
+              <TextBox Text="{Binding WorktreeBaseRev, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,4"
+                       AutomationProperties.Name="Worktree base revision"/>
+              <WrapPanel Margin="0,0,0,6">
+                <Button Content="Create working copy…" Command="{Binding CreateWorktreeCommand}" Style="{StaticResource CompactChip}" Margin="0,0,6,6"
+                        AutomationProperties.Name="Create separate working copy"/>
+                <Button Content="Remove selected…" Command="{Binding RemoveWorktreeCommand}" Style="{StaticResource CompactChip}" Margin="0,0,6,6"
+                        AutomationProperties.Name="Remove separate working copy"/>
+                <Button Content="Refresh lists" Command="{Binding RefreshWorktreesCommand}" Style="{StaticResource CompactChip}" Margin="0,0,6,6"/>
+              </WrapPanel>
+              <ListBox ItemsSource="{Binding GitWorktrees}" SelectedItem="{Binding SelectedWorktree}"
+                       MaxHeight="120" ItemContainerStyle="{StaticResource ConversationItem}"
+                       AutomationProperties.Name="Git worktrees">
+                <ListBox.ItemTemplate>
+                  <DataTemplate>
+                    <TextBlock Text="{Binding Label}" FontFamily="{StaticResource Font.Code}"
+                               FontSize="{StaticResource Size.Caption}" TextWrapping="Wrap"/>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+            </StackPanel>
+            <ListBox ItemsSource="{Binding GitChanges}" SelectedItem="{Binding SelectedGitChange}"
+                     ItemContainerStyle="{StaticResource ConversationItem}"
+                     VirtualizingPanel.IsVirtualizing="True"
+                     AutomationProperties.Name="Git changes">
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <StackPanel Orientation="Horizontal" Margin="2,4">
+                    <CheckBox IsChecked="{Binding Selected, Mode=TwoWay}" Margin="0,0,8,0"
+                              VerticalAlignment="Center"
+                              AutomationProperties.Name="Include change in stage or checkpoint"/>
+                    <StackPanel>
+                      <TextBlock Text="{Binding Label}" FontFamily="{StaticResource Font.Code}"
+                                 FontSize="{StaticResource Size.BodySmall}"/>
+                      <TextBlock Text="{Binding Scope}" Foreground="{DynamicResource Brush.TextMuted}"
+                                 FontSize="{StaticResource Size.Caption}"/>
+                    </StackPanel>
+                  </StackPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </DockPanel>
+          <DockPanel Grid.Column="1">
+            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,8,0,0">
+              <Button Content="Share to chat…" Command="{Binding ShareProjectFileCommand}"
+                      CommandParameter="{Binding SelectedProjectFile}" Style="{StaticResource AccentButton}" Margin="0,0,6,0"
+                      ToolTip="Review content first; suspected keys stay blocked even if you acknowledge"/>
+              <Button Content="Overwrite…" Command="{Binding OverwriteProjectFileCommand}"
+                      CommandParameter="{Binding SelectedProjectFile}" Style="{StaticResource CompactChip}" Margin="0,0,6,0"/>
+              <Button Content="Delete…" Command="{Binding DeleteProjectFileCommand}"
+                      CommandParameter="{Binding SelectedProjectFile}" Style="{StaticResource CompactChip}"/>
+            </StackPanel>
+            <ScrollViewer Style="{StaticResource QuietScrollViewer}"
+                          Visibility="{Binding ProjectPreviewTabVisibility}">
+              <TextBox Text="{Binding ProjectPreview, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                       AcceptsReturn="True" TextWrapping="Wrap" MinHeight="240"
+                       FontFamily="{StaticResource Font.Code}" FontSize="{StaticResource Size.BodySmall}"
+                       AutomationProperties.Name="Project preview"/>
+            </ScrollViewer>
+            <TextBlock Visibility="{Binding ProjectFilesTabVisibility}"
+                       Text="Open a file for Preview, or use Changes to stage exact files and Save checkpoint (local only)."
+                       Foreground="{DynamicResource Brush.TextMuted}" TextWrapping="Wrap"
+                       FontSize="{StaticResource Size.Caption}"/>
+            <TextBlock Visibility="{Binding ProjectChangesTabVisibility}"
+                       Text="Tick exact files, Stage/Unstage, then Save checkpoint (local only). Push is a separate network-grant action with exact remote confirmation. Create PR only after verified push. Folder grant is not a shell."
+                       Foreground="{DynamicResource Brush.TextMuted}" TextWrapping="Wrap"
+                       FontSize="{StaticResource Size.Caption}"/>
+          </DockPanel>
+        </Grid>
+      </DockPanel>
+
+      <!-- Empty chat: a greeting in a serif face (Georgia, built into Windows) above the chat box, as in Claude Desktop -->
+      <TextBlock Grid.Row="1" Text="{Binding EmptyChatGreeting}" Visibility="{Binding EmptyChatVisibility}"
+                 FontFamily="Georgia" FontSize="30" Foreground="{DynamicResource Brush.Text}"
+                 HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24,0,24,170" TextWrapping="Wrap" TextAlignment="Center"
+                 AutomationProperties.Name="Greeting"/>
+
+      <!-- Composer: at the bottom; in an empty chat it sits in the middle under the greeting -->
+      <Border Margin="0,0,0,10" Visibility="{Binding ComposerVisibility}">
+        <Border.Style>
+          <Style TargetType="Border">
+            <Setter Property="Grid.Row" Value="2"/>
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding IsChatEmpty}" Value="True">
+                <Setter Property="Grid.Row" Value="1"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+              </DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </Border.Style>
+        <StackPanel MaxWidth="820" HorizontalAlignment="Stretch" Margin="24,4">
+          <TextBlock Text="{Binding SelectedDeliveryHint}" Foreground="{DynamicResource Brush.Warning}"
+                     TextWrapping="Wrap" Margin="0,0,0,4" FontSize="{StaticResource Size.Caption}"
+                     AutomationProperties.Name="Delivery hint"/>
+          <Border Visibility="{Binding RiskNoticeVisibility}" Background="{DynamicResource Brush.Well}" CornerRadius="6" Padding="10,6" Margin="0,0,0,6"
+                  AutomationProperties.Name="Things Hermes can reach on this computer">
+            <DockPanel>
+              <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="8,0,0,0">
+                <Button Content="Stop sharing" Command="{Binding RevokeFolderCommand}" Visibility="{Binding StopSharingVisibility}"
+                        Style="{StaticResource CompactChip}" AutomationProperties.Name="Stop sharing the folder"/>
+                <Button Content="Close terminal" Command="{Binding CloseTerminalSessionCommand}" Visibility="{Binding CloseTerminalNoticeVisibility}"
+                        Style="{StaticResource CompactChip}" Margin="6,0,0,0" AutomationProperties.Name="Close the terminal"/>
+                <Button Content="Ask me first" Command="{Binding AskFirstCommand}" Visibility="{Binding AskFirstVisibility}"
+                        Style="{StaticResource CompactChip}" Margin="6,0,0,0" AutomationProperties.Name="Make Hermes ask before running commands"
+                        ToolTip="Makes Hermes ask you before it runs commands."/>
+              </StackPanel>
+              <TextBlock Text="{Binding RiskNotice}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.Warning}" VerticalAlignment="Center"/>
+            </DockPanel>
+          </Border>
+          <Border Visibility="{Binding StagedTerminalContextVisibility}" Background="{DynamicResource Brush.Well}"
+                  CornerRadius="6" Padding="8,4" Margin="0,0,0,4"
+                  AutomationProperties.Name="Staged terminal context pending">
+            <DockPanel>
+              <Button DockPanel.Dock="Right" Content="Clear" Command="{Binding ClearStagedTerminalContextCommand}"
+                      Style="{StaticResource CompactChip}" Margin="6,0,0,0"
+                      AutomationProperties.Name="Clear staged terminal context"/>
+              <TextBlock Text="{Binding StagedTerminalContextLabel}" TextWrapping="Wrap"
+                         FontSize="{StaticResource Size.Caption}" VerticalAlignment="Center"/>
+            </DockPanel>
+          </Border>
+          <ItemsControl ItemsSource="{Binding PendingAttachments}" Margin="0,0,0,4">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Border Background="{DynamicResource Brush.Well}" CornerRadius="6" Padding="6,2" Margin="0,0,6,0">
+                  <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" FontSize="{StaticResource Size.Caption}"/>
+                    <Button Content="×" Margin="4,0,0,0" Padding="2,0" Style="{StaticResource CompactChip}"
+                            Command="{Binding DataContext.RemoveAttachCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                            CommandParameter="{Binding}"/>
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <Border Visibility="{Binding VoicePreviewVisibility}" Background="{DynamicResource Brush.Well}"
+                  CornerRadius="6" Padding="8,6" Margin="0,0,0,6"
+                  AutomationProperties.Name="Voice preview panel">
+            <StackPanel>
+              <DockPanel Margin="0,0,0,4">
+                <TextBlock DockPanel.Dock="Left" Text="Voice preview" FontWeight="SemiBold"
+                           FontSize="{StaticResource Size.Caption}" VerticalAlignment="Center"/>
+                <WrapPanel DockPanel.Dock="Right" HorizontalAlignment="Right">
+                  <Button Content="Play" Command="{Binding PlayVoicePreviewCommand}" Style="{StaticResource CompactChip}" Margin="0,0,4,0"
+                          AutomationProperties.Name="Play voice preview"/>
+                  <Button Content="Stop play" Command="{Binding StopVoicePlaybackCommand}" Style="{StaticResource CompactChip}" Margin="0,0,4,0"
+                          AutomationProperties.Name="Stop voice playback"/>
+                  <Button Content="Transcribe" Command="{Binding TranscribeVoiceCommand}" Style="{StaticResource CompactChip}" Margin="0,0,4,0"
+                          AutomationProperties.Name="Transcribe voice preview"/>
+                  <Button Content="Insert to composer" Command="{Binding InsertVoiceTranscriptCommand}" Style="{StaticResource CompactChip}" Margin="0,0,4,0"
+                          AutomationProperties.Name="Insert voice transcript"/>
+                  <Button Content="Cancel" Command="{Binding CancelVoicePreviewCommand}" Style="{StaticResource CompactChip}"
+                          AutomationProperties.Name="Cancel voice preview"/>
+                </WrapPanel>
+              </DockPanel>
+              <TextBox Text="{Binding VoiceTranscriptDraft, UpdateSourceTrigger=PropertyChanged}"
+                       AcceptsReturn="True" TextWrapping="Wrap" MinHeight="36" MaxHeight="96"
+                       Style="{StaticResource ComposerBox}"
+                       AutomationProperties.Name="Voice transcript editor"
+                       ToolTip="Editable transcript — Insert puts text in the composer; Send remains separate"/>
+            </StackPanel>
+          </Border>
+          <Border Background="{DynamicResource Brush.Well}" CornerRadius="8" Padding="10,6" Margin="0,0,0,6"
+                  Visibility="{Binding EditBannerVisibility}" AutomationProperties.Name="Editing a message">
+            <DockPanel>
+              <Button DockPanel.Dock="Right" Content="Cancel edit" Style="{StaticResource CompactChip}"
+                      Command="{Binding CancelEditCommand}" AutomationProperties.Name="Cancel edit"/>
+              <TextBlock Text="{Binding EditBannerText}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+            </DockPanel>
+          </Border>
+          <TextBlock Text="{Binding RewindNotice}" Visibility="{Binding RewindNoticeVisibility}" TextWrapping="Wrap"
+                     Margin="0,0,0,6" Foreground="{DynamicResource Brush.TextMuted}" AutomationProperties.Name="Edit notice"/>
+          <!-- "/" suggestions: shown while the command name is typed; Tab or Enter completes the first one -->
+          <Border Visibility="{Binding SlashSuggestionsVisibility}" Background="{DynamicResource Brush.SurfaceRaised}"
+                  BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1" CornerRadius="12" Padding="4" Margin="0,0,0,6"
+                  AutomationProperties.Name="Command suggestions">
+            <ItemsControl ItemsSource="{Binding SlashSuggestions}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Button Style="{StaticResource GhostButton}" Padding="10,6" HorizontalContentAlignment="Stretch"
+                          Command="{Binding DataContext.PickSlashCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
+                    <StackPanel Orientation="Horizontal">
+                      <TextBlock Text="{Binding Name, StringFormat=/{0}}" FontWeight="SemiBold" MinWidth="96"/>
+                      <TextBlock Text="{Binding Usage}" Foreground="{DynamicResource Brush.TextMuted}" MinWidth="150" Margin="0,0,12,0"/>
+                      <TextBlock Text="{Binding Description}" Foreground="{DynamicResource Brush.TextMuted}"/>
+                    </StackPanel>
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </Border>
+          <!-- The chat box: one rounded card (text on top; + and microphone on the left; model, YOLO and send / stop on the right) -->
+          <Grid>
+          <!-- The shadow is its own empty layer: an effect on the card itself blurred the text typed in it. -->
+          <Border CornerRadius="18" Background="{DynamicResource Brush.SurfaceRaised}">
+            <Border.Effect>
+              <DropShadowEffect BlurRadius="16" ShadowDepth="2" Direction="270" Opacity="0.08"/>
+            </Border.Effect>
+          </Border>
+          <Border x:Name="ComposerCard" Background="{DynamicResource Brush.SurfaceRaised}" BorderBrush="{DynamicResource Brush.Border}"
+                  BorderThickness="1" CornerRadius="18" Padding="8,8,8,8" AutomationProperties.Name="Chat box">
+            <StackPanel>
+              <Grid Margin="6,0,0,0">
+                <TextBox x:Name="Composer" Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}"
+                         AcceptsReturn="True" TextWrapping="Wrap" MinHeight="28" MaxHeight="200"
+                         VerticalScrollBarVisibility="Auto" PreviewKeyDown="Composer_PreviewKeyDown"
+                         Style="{StaticResource ComposerBareBox}"
+                         AutomationProperties.Name="Message composer"/>
+                <TextBlock Text="{Binding ComposerPlaceholder}" Visibility="{Binding ComposerPlaceholderVisibility}" IsHitTestVisible="False"
+                           Foreground="{DynamicResource Brush.TextMuted}" Margin="4,4,0,0"/>
+              </Grid>
+              <DockPanel Margin="0,4,0,0" LastChildFill="False">
+                <Button DockPanel.Dock="Left" Style="{StaticResource IconButton}" Command="{Binding AttachCommand}"
+                        ToolTip="Add files or pictures" AutomationProperties.Name="Attach files">
+                  <TextBlock Style="{StaticResource IconGlyph}" Text="&#xE710;"/>
+                </Button>
+                <Grid DockPanel.Dock="Left">
+                  <Button Style="{StaticResource IconButton}" Command="{Binding ToggleMicCommand}" Visibility="{Binding MicIdleVisibility}"
+                          ToolTip="Dictate: speak, then check the text before you send it. The microphone is only on while you record."
+                          AutomationProperties.Name="Dictate">
+                    <TextBlock Style="{StaticResource IconGlyph}" Text="&#xE720;"/>
+                  </Button>
+                  <Button Style="{StaticResource IconButton}" Command="{Binding StopMicCommand}" Visibility="{Binding MicRecordingVisibility}"
+                          Foreground="{DynamicResource Brush.Danger}" ToolTip="Stop recording" AutomationProperties.Name="Stop recording">
+                    <TextBlock Style="{StaticResource IconGlyph}" Text="&#xE71A;"/>
+                  </Button>
+                </Grid>
+                <Button DockPanel.Dock="Right" Style="{StaticResource SendButton}" Command="{Binding SendCommand}" Visibility="{Binding SendButtonVisibility}"
+                        ToolTip="Send (Enter). While a reply is running this adds your message to it. Type / for commands."
+                        AutomationProperties.Name="Send or steer">
+                  <TextBlock Style="{StaticResource IconGlyph}" Text="&#xE74A;" FontWeight="Bold"/>
+                </Button>
+                <Button DockPanel.Dock="Right" Style="{StaticResource StopButton}" Command="{Binding CancelCommand}" Visibility="{Binding StopButtonVisibility}"
+                        ToolTip="Stop the reply" AutomationProperties.Name="Stop">
+                  <TextBlock Style="{StaticResource IconGlyph}" Text="&#xE71A;" FontSize="12"/>
+                </Button>
+                <Button DockPanel.Dock="Right" Content="Stop &amp; send" Command="{Binding StopAndSendCommand}" Style="{StaticResource CompactChip}"
+                        Visibility="{Binding RunningActionsVisibility}"
+                        ToolTip="Stop the running reply and send this as a new message."
+                        AutomationProperties.Name="Stop and send"/>
+                <Button DockPanel.Dock="Right" Content="Queue" Command="{Binding QueueCommand}" Style="{StaticResource CompactChip}"
+                        Visibility="{Binding RunningActionsVisibility}"
+                        ToolTip="Send this after the reply finishes. Kept in this app only: closing it, stopping the reply or an error puts it back in the box."
+                        AutomationProperties.Name="Queue message"/>
+                <Button DockPanel.Dock="Right" Content="YOLO on" Command="{Binding ToggleYoloCommand}" Visibility="{Binding YoloPillVisibility}"
+                        Style="{StaticResource WarningPill}" ToolTip="Tools run in this chat without asking you first. Click to turn it off."
+                        AutomationProperties.Name="Chat YOLO control"/>
+                <Button x:Name="ModelMenuButton" DockPanel.Dock="Right" Click="ModelMenu_Click" Visibility="{Binding ModelMenuVisibility}"
+                        Style="{StaticResource CompactChip}" ToolTip="Model for this chat (or type /model)" AutomationProperties.Name="Model menu">
+                  <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="{Binding ModelMenuLabel}" MaxWidth="200" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource Brush.TextMuted}"/>
+                    <TextBlock Style="{StaticResource IconGlyph}" Text="&#xE70D;" FontSize="9" Margin="5,1,0,0"/>
+                  </StackPanel>
+                </Button>
+              </DockPanel>
+            </StackPanel>
+          </Border>
+          </Grid>
+          <TextBlock Text="{Binding VoiceStatus}" Visibility="{Binding VoiceStatusVisibility}" Foreground="{DynamicResource Brush.TextMuted}"
+                     TextWrapping="Wrap" Margin="0,4,0,0" FontSize="{StaticResource Size.Caption}"
+                     AutomationProperties.Name="Voice status"/>
+        </StackPanel>
+      </Border>
+
+      <!-- Local terminal bottom drawer: hide keeps session; Close kills PTY. Default closed; no auto-launch. -->
+      <Border x:Name="TerminalDrawer" Grid.Row="3" Visibility="{Binding TerminalDrawerVisibility}"
+              Background="{DynamicResource Brush.SurfaceRaised}"
+              BorderBrush="{DynamicResource Brush.Border}" BorderThickness="0,1,0,0"
+              MinHeight="180" MaxHeight="320"
+              SizeChanged="TerminalDrawer_SizeChanged"
+              AutomationProperties.Name="Local terminal drawer">
+        <DockPanel Margin="12,8">
+          <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+            <WrapPanel DockPanel.Dock="Right">
+              <Button Content="Hide drawer" Command="{Binding HideTerminalDrawerCommand}" Style="{StaticResource CompactChip}" Margin="0,0,6,0"
+                      ToolTip="Keeps running session"/>
+              <Button Content="Close terminal" Command="{Binding CloseTerminalSessionCommand}" Style="{StaticResource CompactChip}" Margin="0,0,6,0"
+                      ToolTip="Kills child process tree / PTY"
+                      AutomationProperties.Name="Close terminal session"/>
+              <Button Content="Start" Command="{Binding StartTerminalCommand}" Style="{StaticResource AccentButton}"
+                      AutomationProperties.Name="Start local terminal"/>
+            </WrapPanel>
+            <StackPanel>
+              <TextBlock Text="{Binding TerminalHostLabel}" FontWeight="SemiBold" FontSize="{StaticResource Size.BodySmall}"
+                         AutomationProperties.Name="Terminal host label"/>
+              <TextBlock Text="{Binding TerminalCwdLabel}" Foreground="{DynamicResource Brush.TextMuted}"
+                         TextWrapping="Wrap" FontSize="{StaticResource Size.Caption}"
+                         AutomationProperties.Name="Terminal working directory"/>
+            </StackPanel>
+          </DockPanel>
+          <TextBlock DockPanel.Dock="Top" Text="{Binding TerminalHonesty}" Foreground="{DynamicResource Brush.Warning}"
+                     TextWrapping="Wrap" FontSize="{StaticResource Size.Caption}" Margin="0,0,0,6"/>
+          <TextBlock DockPanel.Dock="Top" Text="{Binding TerminalStatus}" Foreground="{DynamicResource Brush.TextMuted}"
+                     TextWrapping="Wrap" FontSize="{StaticResource Size.Caption}" Margin="0,0,0,4"
+                     AutomationProperties.Name="Terminal status"/>
+          <DockPanel DockPanel.Dock="Bottom" Margin="0,6,0,0">
+            <ComboBox DockPanel.Dock="Top" ItemsSource="{Binding ShellChoices}" SelectedItem="{Binding SelectedShell}"
+                      DisplayMemberPath="Label" Margin="0,0,0,4"
+                      AutomationProperties.Name="Trusted shell selection"/>
+            <DockPanel>
+              <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="6,0,0,0">
+                <Button Content="Paste" Command="{Binding PasteTerminalCommand}" Style="{StaticResource CompactChip}" Margin="0,0,6,0"
+                        ToolTip="Insert clipboard text without Enter"/>
+                <Button Content="Enter" Command="{Binding SubmitTerminalLineCommand}" Style="{StaticResource CompactChip}" Margin="0,0,6,0"/>
+                <Button Content="Add selection to chat…" Command="{Binding AddTerminalSelectionToChatCommand}" Style="{StaticResource CompactChip}"
+                        AutomationProperties.Name="Add terminal selection to chat"/>
+              </StackPanel>
+              <TextBox Text="{Binding TerminalInput, UpdateSourceTrigger=PropertyChanged}"
+                       FontFamily="{StaticResource Font.Code}" MinHeight="28"
+                       AutomationProperties.Name="Terminal input"/>
+            </DockPanel>
+          </DockPanel>
+          <TextBox x:Name="TerminalOutputBox" Text="{Binding TerminalOutput, Mode=OneWay}" IsReadOnly="True"
+                   FontFamily="{StaticResource Font.Code}" FontSize="{StaticResource Size.Caption}"
+                   TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                   AcceptsReturn="True" Background="{DynamicResource Brush.Well}"
+                   AutomationProperties.Name="Terminal output"
+                   SizeChanged="TerminalDrawer_SizeChanged"
+                   SelectionChanged="TerminalOutput_SelectionChanged"/>
+        </DockPanel>
+      </Border>
+    </Grid>
+
+    <!-- Command palette (Ctrl+K): navigation and reversible view actions only -->
+    <Border Grid.ColumnSpan="2" Background="#55000000" Visibility="{Binding PaletteVisibility}"
+            MouseLeftButtonDown="PaletteScrim_Click" AutomationProperties.Name="Command palette">
+      <Border VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,84,0,0" Width="560" MaxWidth="560"
+              Background="{DynamicResource Brush.SurfaceRaised}" BorderBrush="{DynamicResource Brush.Border}"
+              BorderThickness="1" CornerRadius="10" Padding="10" MouseLeftButtonDown="PalettePanel_Click">
+        <StackPanel>
+          <TextBox x:Name="PaletteBox" Text="{Binding PaletteQuery, UpdateSourceTrigger=PropertyChanged}"
+                   PreviewKeyDown="PaletteBox_PreviewKeyDown" Padding="8,6" FontSize="{StaticResource Size.Body}"
+                   AutomationProperties.Name="Type a command or a place"/>
+          <TextBlock Text="{Binding PaletteStatus}" Margin="4,6,0,4" Foreground="{DynamicResource Brush.TextMuted}"
+                     FontSize="{StaticResource Size.Caption}" AutomationProperties.LiveSetting="Polite"
+                     AutomationProperties.Name="Palette results"/>
+          <ItemsControl ItemsSource="{Binding PaletteResults}" MaxHeight="360" AutomationProperties.Name="Palette commands">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Button Command="{Binding DataContext.RunPaletteEntryCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                        CommandParameter="{Binding}" HorizontalContentAlignment="Stretch" Margin="0,1" Padding="8,6"
+                        Style="{StaticResource GhostButton}" AutomationProperties.Name="{Binding Title}">
+                  <DockPanel>
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding Group}" Foreground="{DynamicResource Brush.TextMuted}"
+                               FontSize="{StaticResource Size.Caption}" VerticalAlignment="Center"/>
+                    <StackPanel>
+                      <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis">
+                        <TextBlock.Style>
+                          <Style TargetType="TextBlock">
+                            <Style.Triggers>
+                              <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter Property="Foreground" Value="{DynamicResource Brush.Accent}"/>
+                              </DataTrigger>
+                            </Style.Triggers>
+                          </Style>
+                        </TextBlock.Style>
+                      </TextBlock>
+                      <TextBlock Text="{Binding Hint}" Foreground="{DynamicResource Brush.TextMuted}"
+                                 FontSize="{StaticResource Size.Caption}" TextTrimming="CharacterEllipsis">
+                        <TextBlock.Style>
+                          <Style TargetType="TextBlock">
+                            <Style.Triggers>
+                              <DataTrigger Binding="{Binding Hint}" Value="">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                              </DataTrigger>
+                            </Style.Triggers>
+                          </Style>
+                        </TextBlock.Style>
+                      </TextBlock>
+                    </StackPanel>
+                  </DockPanel>
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+    </Border>
+  </Grid>
+</Window>

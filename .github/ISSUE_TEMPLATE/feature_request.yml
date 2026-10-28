@@ -1,0 +1,21 @@
+name: Feature request
+description: Suggest something Hikyaku could do.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would you like to do?
+      description: Describe the task or problem, not only the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: reference
+    attributes:
+      label: Does Hermes Desktop or the web dashboard already do this?
+      description: Hikyaku follows Hermes Desktop's behaviour where a feature exists there.
+  - type: dropdown
+    id: view
+    attributes:
+      label: Who is it for?
+      options: [Everyday chatting (Simple), Managing Hermes (Advanced), Not sure]

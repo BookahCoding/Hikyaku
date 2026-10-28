@@ -1,0 +1,46 @@
+name: Bug report
+description: Something in Hikyaku does not work as expected.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting. **Do not paste passwords, tokens, gateway addresses or private chat contents.**
+        Security problems go through SECURITY.md (private reporting), not here.
+  - type: input
+    id: version
+    attributes:
+      label: Hikyaku version
+      description: Settings → Updates shows it (for example 0.5.0).
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: Windows 11 23H2
+    validations:
+      required: true
+  - type: dropdown
+    id: view
+    attributes:
+      label: View
+      options: [Simple, Advanced, Both]
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open …
+        2. Click …
+  - type: textarea
+    id: gateway
+    attributes:
+      label: Gateway details (optional)
+      description: Hermes Agent version and relevant plugins (for example herald-push), if you know them. No addresses.
