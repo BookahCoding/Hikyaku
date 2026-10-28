@@ -16,6 +16,7 @@ public class Checkpoint36ExperienceTests
                 ExperienceFeature.ProfileSwitcher,                     // Stage 41: whom to talk to (only with more than one profile ticked)
                 ExperienceFeature.Artifacts,                           // Stage 41: the agent's pictures and files (read-only)
                 ExperienceFeature.VoiceChat,                           // 0.6.0: talking with the agent (the maintainer: both views)
+                ExperienceFeature.SettingsUpdates,                     // 0.6.1: keeping Hikyaku up to date (the maintainer: Simple too)
                 ExperienceFeature.SettingsAccount, ExperienceFeature.SettingsAppearance, ExperienceFeature.SettingsExperience
             }.Order(),
             Experience.SimpleSet.Order());
@@ -36,7 +37,7 @@ public class Checkpoint36ExperienceTests
             ExperienceFeature.Projects, ExperienceFeature.InboxSetup, ExperienceFeature.ConfigEditor, ExperienceFeature.McpEdit, ExperienceFeature.Scheduled, ExperienceFeature.Terminal,   // Artifacts: both views since Stage 41
             ExperienceFeature.ModelChip, ExperienceFeature.BranchChat, ExperienceFeature.ReasoningChip, ExperienceFeature.FastChip,
             ExperienceFeature.ToolDetails, ExperienceFeature.SessionFilters, ExperienceFeature.ReasoningDetails, ExperienceFeature.AgentPlan, ExperienceFeature.AgentNotices,
-            ExperienceFeature.SettingsConnection, ExperienceFeature.SettingsAccess, ExperienceFeature.SettingsUpdates,
+            ExperienceFeature.SettingsConnection, ExperienceFeature.SettingsAccess,
             ExperienceFeature.SettingsProfiles, ExperienceFeature.SettingsApprovals, ExperienceFeature.SettingsNotifications
         ];
         Assert.All(admin, f => Assert.False(Experience.IsVisible(f, advanced: false), f.ToString()));
@@ -59,7 +60,8 @@ public class Checkpoint36ExperienceTests
         var p = SettingsSections.For(advanced: false, setupNeeded: false);
         Assert.True(p.SignInButtons && p.Credentials && p.AccountHeading);           // signing in again must stay possible
         Assert.False(p.FullSignInLabel);
-        Assert.False(p.Connection || p.ConnectionHint || p.Access || p.Updates || p.Profiles || p.Approvals || p.Notifications);
+        Assert.False(p.Connection || p.ConnectionHint || p.Access || p.Profiles || p.Approvals || p.Notifications);
+        Assert.True(p.Updates);                                                      // 0.6.1: updates in Simple too
     }
 
     [Fact]
@@ -67,7 +69,7 @@ public class Checkpoint36ExperienceTests
     {
         var p = SettingsSections.For(advanced: false, setupNeeded: true);
         Assert.True(p.Connection && p.ConnectionHint && p.Profiles && p.FullSignInLabel);   // otherwise "Open Settings to add a profile" is a dead end
-        Assert.False(p.Access || p.Updates || p.Approvals || p.Notifications);
+        Assert.False(p.Access || p.Approvals || p.Notifications);
     }
 
     [Theory]

@@ -5,6 +5,11 @@ are `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+## 0.6.1 — updates in Simple view
+
+- Settings → Updates and the "Update to x.y.z" button are offered in Simple view too (the maintainer's choice), so
+  someone using Simple view can keep Hikyaku up to date.
+
 ## 0.6.0 — voice chat
 
 Plain-text release notes: [docs/release-notes/v0.6.0.txt](docs/release-notes/v0.6.0.txt).

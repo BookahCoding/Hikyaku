@@ -30,7 +30,7 @@ public class Checkpoint45StartupUpdateWpfTests
     }
 
     [Fact]
-    public void The_update_button_shows_once_a_newer_version_is_known_and_only_in_advanced()
+    public void The_update_button_shows_once_a_newer_version_is_known_in_both_views()
     {
         RunSta(() =>
         {
@@ -44,7 +44,7 @@ public class Checkpoint45StartupUpdateWpfTests
             Assert.Equal(Visibility.Visible, vm.UpdateNoticeVisibility);
 
             vm.ApplyExperience(false);
-            Assert.Equal(Visibility.Collapsed, vm.UpdateNoticeVisibility);                 // Settings → Updates is Advanced-only
+            Assert.Equal(Visibility.Visible, vm.UpdateNoticeVisibility);                   // 0.6.1: Simple view is offered updates too
             Assert.True(new AppSettings().CheckUpdatesOnStart);
         });
     }

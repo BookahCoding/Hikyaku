@@ -38,6 +38,7 @@ public static class Experience
         ExperienceFeature.ProfileSwitcher,   // whom to talk to is everyday chatting (one ticked profile hides it anyway)
         ExperienceFeature.Artifacts,         // the pictures and files the agent made: read-only on the gateway (the maintainer, 2026-10-27)
         ExperienceFeature.VoiceChat,         // talking with the agent is everyday chatting (the maintainer, 2026-10-28)
+        ExperienceFeature.SettingsUpdates,   // keeping Hikyaku up to date, in both views (the maintainer, 2026-10-28)
         ExperienceFeature.SettingsAccount,   // sign in / out
         ExperienceFeature.SettingsAppearance,
         ExperienceFeature.SettingsExperience // the way back to Advanced, and the mode choice, in both views
