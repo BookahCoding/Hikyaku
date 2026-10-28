@@ -444,6 +444,12 @@
                         </Style.Triggers>
                       </Style>
                     </StackPanel.Style>
+                    <Button Style="{StaticResource MiniIconButton}" Visibility="{Binding CopyVisibility}"
+                            ToolTip="Copy this message" AutomationProperties.Name="Copy message"
+                            Command="{Binding DataContext.CopyMessageCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                            CommandParameter="{Binding}">
+                      <TextBlock Style="{StaticResource IconGlyph}" FontSize="13" Text="&#xE8C8;"/>
+                    </Button>
                     <Button Style="{StaticResource MiniIconButton}" Visibility="{Binding ReadAloudVisibility}"
                             ToolTip="{Binding ReadAloudLabel}" AutomationProperties.Name="Read reply aloud"
                             Command="{Binding DataContext.ReadAloudMessageCommand, RelativeSource={RelativeSource AncestorType=Window}}"
@@ -471,7 +477,7 @@
                               AutomationProperties.Name="Branch from here"
                               Command="{Binding DataContext.BranchFromHereCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                               CommandParameter="{Binding}">
-                        <TextBlock Style="{StaticResource IconGlyph}" FontSize="13" Text="&#xE8C8;"/>
+                        <TextBlock Style="{StaticResource IconGlyph}" FontSize="13" Text="&#xE8A7;"/>
                       </Button>
                     </StackPanel>
                   </StackPanel>
