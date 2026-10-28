@@ -10,7 +10,7 @@ namespace Hikyaku.App;
 /// the gateway's voice uses, queued as it arrives. One worker thread waits on both devices' event callbacks (the safe winmm
 /// pattern: no device calls from inside a callback). Not unit-testable (hardware); the voice chat's decisions live in Core.
 /// </summary>
-public sealed class WinMmVoiceIo : IDisposable
+public sealed class WinMmVoiceIo : IVoiceChatAudio
 {
     private const int MicRate = 16_000;
     private const int FrameSamples = 320;                 // 20 ms

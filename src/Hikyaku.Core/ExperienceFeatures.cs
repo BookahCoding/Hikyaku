@@ -14,6 +14,8 @@ public enum ExperienceFeature
     // what the agent did while answering (Stage 44): the reasoning text, the plan checklist and the agent's notices (such as
     // "Context was compressed"); Simple keeps a plain activity line and the risk warning
     ReasoningDetails, AgentPlan, AgentNotices,
+    // talking with the agent: the hands-free voice chat in the chat box (0.6.0), everyday chatting in both views
+    VoiceChat,
     // settings sections
     SettingsAccount, SettingsAppearance, SettingsExperience,
     SettingsConnection, SettingsAccess, SettingsUpdates, SettingsProfiles, SettingsApprovals, SettingsNotifications,
@@ -35,6 +37,7 @@ public static class Experience
         ExperienceFeature.NeedsYou,          // an approval the agent is waiting on must never be hidden
         ExperienceFeature.ProfileSwitcher,   // whom to talk to is everyday chatting (one ticked profile hides it anyway)
         ExperienceFeature.Artifacts,         // the pictures and files the agent made: read-only on the gateway (the maintainer, 2026-10-27)
+        ExperienceFeature.VoiceChat,         // talking with the agent is everyday chatting (the maintainer, 2026-10-28)
         ExperienceFeature.SettingsAccount,   // sign in / out
         ExperienceFeature.SettingsAppearance,
         ExperienceFeature.SettingsExperience // the way back to Advanced, and the mode choice, in both views

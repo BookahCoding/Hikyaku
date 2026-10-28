@@ -343,6 +343,23 @@ public static class UiAcceptance
             exercised.Add("tool-steps-screenshot");
             exercised.Add("reasoning-and-plan-screenshot");
         }
+        // 0.6.0 voice chat: the headset button opens the bar listening (a silent fixture: no device is opened in a test run).
+        {
+            if (vm.VoiceChatButtonVisibility != Visibility.Visible)
+                throw new InvalidOperationException("HIKYAKU_UI_FAIL the voice chat button is not offered");
+            vm.ToggleVoiceChatCommand.Execute(null);
+            for (var i = 0; i < 50 && vm.VoiceChatStatus != "Listening…"; i++)
+                await window.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
+            window.UpdateLayout();
+            Capture(window, Path.Combine(outDir, "04m-voice-chat.png"));
+            if (vm.VoiceChatStatus != "Listening…" || vm.VoiceChatBarVisibility != Visibility.Visible)
+                throw new InvalidOperationException("HIKYAKU_UI_FAIL voice chat did not start listening: " + vm.VoiceChatStatus);
+            vm.EndVoiceChat(null);
+            for (var i = 0; i < 50 && vm.VoiceChatActive; i++)
+                await window.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
+            if (vm.VoiceChatActive) throw new InvalidOperationException("HIKYAKU_UI_FAIL voice chat did not end");
+            exercised.Add("voice-chat-bar-screenshot");
+        }
         // Running filter with synthetic listed chats and no gateway: every chat stays visible and the note says why.
         foreach (var n in new[] { "Quarterly report draft", "Refactor the parser", "Plan the offsite" })
             vm.SessionRows.Add(new SessionRowVM(new SessionSummary("fixture-" + n.GetHashCode(), n, Preview: "Synthetic fixture row")));

@@ -15,6 +15,7 @@ public class Checkpoint36ExperienceTests
                 ExperienceFeature.Chats, ExperienceFeature.Inbox, ExperienceFeature.NeedsYou,
                 ExperienceFeature.ProfileSwitcher,                     // Stage 41: whom to talk to (only with more than one profile ticked)
                 ExperienceFeature.Artifacts,                           // Stage 41: the agent's pictures and files (read-only)
+                ExperienceFeature.VoiceChat,                           // 0.6.0: talking with the agent (the maintainer: both views)
                 ExperienceFeature.SettingsAccount, ExperienceFeature.SettingsAppearance, ExperienceFeature.SettingsExperience
             }.Order(),
             Experience.SimpleSet.Order());

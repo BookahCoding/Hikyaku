@@ -666,6 +666,7 @@ public sealed partial class MainViewModel : Observable
         {
             if (_selected == value) return;
             if (value is null && _refillingList) return;        // the list emptied for a refill, not a choice to close the chat
+            if (_voiceChatRun is { } voice && !ReferenceEquals(voice.Conversation, value)) EndVoiceChat(null);   // a voice chat belongs to its chat
             _ = PersistDraftAsync();
             ExitEditMode(restoreDraft: false);
             SetRewindNotice("");
