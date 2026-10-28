@@ -15,6 +15,9 @@ hikyaku.local.*
 *.snk
 *.key
 *.pem
+# Python caches (hermes-plugin tests)
+__pycache__/
+*.pyc
 # logs and run artefacts
 *.log
 logs/

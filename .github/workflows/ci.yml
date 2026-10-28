@@ -37,6 +37,9 @@ jobs:
       - name: WPF tests
         run: dotnet test tests/Hikyaku.App.Tests -c Release --no-build -nologo
 
+      - name: Hermes plugin tests (hikyaku-cron)
+        run: python -m unittest discover -s hermes-plugin/hikyaku-cron/tests
+
       - name: Secret and personal-data scan
         shell: powershell
         run: ./scripts/check-secrets.ps1
