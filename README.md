@@ -19,7 +19,8 @@ edges with other servers and please report them (see below); fixes arrive as in-
 - **Chats** with your Hermes agents: streaming replies, maths (TeX), attachments, voice dictation, read aloud, copy, edit and
   regenerate, branch, find in chat, steer or queue a message while a reply is running, and clear cards when a reply fails.
   Nothing is ever resent automatically.
-- **Inbox** for the results of your scheduled jobs (open one as a chat; hide jobs you don't care about), and **Needs you** for
+- **Inbox** for the results of your scheduled jobs: what each run found at a glance, failures marked, unread dots, opened in
+  place or asked about in a chat (the optional `hikyaku-cron` Hermes plugin shows script-only jobs' whole output), and **Needs you** for
   approvals and questions the agent is waiting on, with Windows notifications if you turn them on.
 - **Advanced tools** for whoever looks after the gateway: scheduled jobs, skills, toolsets and MCP servers, the skills hub,
   a settings editor and `config.yaml` editor, insights, hosted rooms, artifacts, the memory graph (Journey), and local

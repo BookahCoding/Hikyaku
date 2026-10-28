@@ -5,6 +5,21 @@ are `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+## 0.7.0 — the Inbox shows what each job found
+
+Plain-text release notes: [docs/release-notes/v0.7.0.txt](docs/release-notes/v0.7.0.txt). Design:
+docs/superpowers/specs/2026-10-28-inbox-results-design.md.
+
+- Each Inbox result shows what the run found: the agent's final answer, or the script's output without the run
+  document's header, instead of the header or the job's own prompt. Click a result to read it whole in place; an agent
+  result has "Ask about this" to follow up in a chat.
+- Failed runs (script failed, blocked) are marked Failed with Hermes' reason; runs with nothing to say read "Nothing new".
+- Unread results have a dot and a bold name until opened; folders show how many are new; "Mark all as read". Kept per PC.
+- New, optional Hermes plugin `hikyaku-cron` (in this repository, `hermes-plugin/hikyaku-cron`): one read-only command that
+  returns a script-only run's whole output; without it those rows show the dashboard's short preview. Install on the
+  gateway with `hermes plugins install BookahCoding/Hikyaku/hermes-plugin/hikyaku-cron --enable`.
+- Merged contributions: a Copy button on each message; drafts kept when two saves overlap; reasoning painted in small
+  batches; a tighter recent-chat list; the remove-file button named for screen readers.
 - The × on a file you are about to send is named for that file (for example "Remove notes.txt") for screen readers, with a tooltip that the file has not been sent.
 - Recent chats no longer keep a blank line under every row. "Pinned" and the preview only take space when there is something to show.
 - While a reply is thinking, the reasoning text updates in small batches instead of on every token, so a long thought stays responsive. The full text is still shown.
