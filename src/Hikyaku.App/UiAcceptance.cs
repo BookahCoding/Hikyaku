@@ -178,6 +178,25 @@ public static class UiAcceptance
                 advDlg.Close();
             }
             exercised.Add("settings-simple-screenshot");
+            // Live finding (0.5.0): with a working session, Settings opened with the approval modes greyed out and "Sign in to
+            // load", until the profile was switched away and back. They must load as the window opens.
+            {
+                using var fixtureAuth = new DashboardAuth(new Uri("https://gateway.example.invalid/"), new FixtureConfigHandler());
+                var knownBeforeAppr = settings.KnownProfileIds;
+                settings.KnownProfileIds = ["default", "alpha-bot"];                           // synthetic ids
+                var apprDlg = new SettingsWindow(settings, Path.Combine(settingsDir, "settings-appr.json"), selection,
+                    new DpapiSecretStore(Path.Combine(settingsDir, "secrets")), () => fixtureAuth);
+                apprDlg.Left = -10000; apprDlg.Top = -10000; apprDlg.ShowInTaskbar = false;
+                apprDlg.Show();
+                settings.KnownProfileIds = knownBeforeAppr;
+                var smart = () => apprDlg.ApprovalModes.Children.OfType<System.Windows.Controls.RadioButton>().FirstOrDefault(r => r.Tag is ApprovalMode { Wire: "smart" });
+                for (var i = 0; i < 50 && smart() is not { IsEnabled: true }; i++) await Task.Delay(40);
+                var ok = smart() is { IsEnabled: true };
+                var why = $"section={apprDlg.ApprovalsSection.Visibility} profile={apprDlg.ApprovalProfile.SelectedItem} status={apprDlg.ApprovalStatus.Text}";
+                apprDlg.Close();
+                if (!ok) throw new InvalidOperationException("HIKYAKU_UI_FAIL approval modes did not load when Settings opened with a session: " + why);
+                exercised.Add("settings-approvals-load-on-open");
+            }
         }
         // Command palette (Ctrl+K): navigation and reversible view actions only.
         vm.OpenPaletteCommand!.Execute(null);
@@ -823,6 +842,19 @@ public static class UiAcceptance
 }
 
 /// <summary>Synthetic hosted-rooms answers for the UI acceptance run only: no gateway is involved.</summary>
+/// <summary>A gateway's config routes, synthetic: approvals can be Manual, Smart or Off and are Manual now.</summary>
+internal sealed class FixtureConfigHandler : System.Net.Http.HttpMessageHandler
+{
+    protected override Task<System.Net.Http.HttpResponseMessage> SendAsync(System.Net.Http.HttpRequestMessage request, CancellationToken ct)
+    {
+        var json = request.RequestUri!.AbsolutePath.EndsWith("/api/config/schema", StringComparison.Ordinal)
+            ? """{"fields":{"approvals.mode":{"type":"select","category":"approvals","options":["manual","smart","off"]}}}"""
+            : """{"approvals":{"mode":"manual"}}""";
+        return Task.FromResult(new System.Net.Http.HttpResponseMessage(System.Net.HttpStatusCode.OK)
+        { Content = new System.Net.Http.StringContent(json, Encoding.UTF8, "application/json") });
+    }
+}
+
 internal sealed class FixtureRoomsPeer : IJsonRpcPeer
 {
     public Task<System.Text.Json.Nodes.JsonNode?> RequestAsync(string method, System.Text.Json.Nodes.JsonObject? parameters = null,

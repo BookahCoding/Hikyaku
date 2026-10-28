@@ -49,6 +49,7 @@ public partial class SettingsWindow : Window
         Loaded += (_, _) =>
         {
             RefreshAccessStatus();
+            if (ApprovalsSection.Visibility == Visibility.Visible) _ = LoadApprovalsForSelectedAsync();
             if (CheckUpdatesOnOpen && UpdatesSection.Visibility == Visibility.Visible)
             {
                 UpdatesSection.BringIntoView();
@@ -84,8 +85,10 @@ public partial class SettingsWindow : Window
         PreviewTheme();
 
         // AddRow (above) already put each known profile in this list once; adding them again listed every profile twice.
-        if (ApprovalProfile.Items.Count > 0) ApprovalProfile.SelectedIndex = 0;
-        ApprovalStatus.Text = "Sign in to load Smart / Manual / Off from the gateway (fixtures only in tests — this run does not change live settings unless you save).";
+        // The profile in use (the sidebar switcher) first; it loads as the window opens (see Loaded).
+        var active = settings.ActiveProfileId is { } a && ApprovalProfile.Items.Contains(a) ? ApprovalProfile.Items.IndexOf(a) : 0;
+        if (ApprovalProfile.Items.Count > 0) ApprovalProfile.SelectedIndex = active;
+        ApprovalStatus.Text = "Loading the approval setting from the gateway…";
         BuildApprovalRadios(enabled: false, selected: ApprovalMode.Manual);
     }
 
@@ -344,14 +347,26 @@ public partial class SettingsWindow : Window
 
     private async void ApprovalProfile_Changed(object sender, SelectionChangedEventArgs e)
     {
-        if (!IsLoaded) return;
+        if (!IsLoaded) return;                       // the first selection is loaded by Loaded
+        await LoadApprovalsForSelectedAsync();
+    }
+
+    /// <summary>
+    /// The selected profile's approval mode, with the app's session (or a saved sign-in). Runs as the window opens and on a
+    /// profile change; before 0.5.1 it ran only on a change, so the modes stayed greyed out until the profile was switched.
+    /// </summary>
+    private async Task LoadApprovalsForSelectedAsync()
+    {
         try
         {
             var auth = _liveAuth() ?? await TryAuthFromStoreAsync();
-            if (auth is null) return;
+            if (auth is null) return;               // TryAuthFromStoreAsync said why
             await LoadApprovalsAsync(auth);
         }
-        catch { /* status already explains */ }
+        catch (Exception ex)                         // runs from async void handlers: anything let out here would close the app
+        {
+            ApprovalStatus.Text = "Could not load the approval setting: " + ex.Message;
+        }
     }
 
     private async Task LoadApprovalsAsync(DashboardAuth auth)
