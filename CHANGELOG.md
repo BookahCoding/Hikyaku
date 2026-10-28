@@ -5,6 +5,8 @@ are `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- While a reply is thinking, the reasoning text updates in small batches instead of on every token, so a long thought stays responsive. The full text is still shown.
+
 ## 0.5.0 — first public test release
 
 First public release of the Windows client for a Hermes Agent gateway, numbered 0.5 because it is still being tested

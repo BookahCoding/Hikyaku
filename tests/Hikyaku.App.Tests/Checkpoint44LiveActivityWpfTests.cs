@@ -110,6 +110,21 @@ public class Checkpoint44LiveActivityWpfTests
     }
 
     [Fact]
+    public void A_burst_of_reasoning_is_kept_in_full_when_the_answer_starts()
+    {
+        RunSta(() =>
+        {
+            var chunks = Enumerable.Range(0, 40).Select(i => (ChatEvent)new ReasoningDelta($"part {i}. ")).ToArray();
+            ChatEvent[] events = [.. chunks, new TokenDelta("Done."), new StreamCompleted()];
+            var vm = Make(new Scripted(events), advanced: true);
+            var reply = SendAndWait(vm);
+            Assert.Equal(string.Concat(Enumerable.Range(0, 40).Select(i => $"part {i}. ")), reply.Reasoning);
+            Assert.Equal("Done.", reply.Text);
+            Assert.StartsWith("Thought for", reply.ReasoningHeader);
+        });
+    }
+
+    [Fact]
     public void Simple_view_keeps_the_warning_and_a_plain_activity_line_but_not_the_reasoning_the_plan_or_notices()
     {
         RunSta(() =>
