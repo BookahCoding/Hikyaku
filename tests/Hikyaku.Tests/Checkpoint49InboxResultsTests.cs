@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using Hikyaku.Core;
 using Xunit;
 
@@ -65,6 +66,79 @@ public class Checkpoint49InboxResultsTests
         var huge = new string('x', 2_000_000);
         Assert.Equal(RunStatus.Ok, CronRunText.Parse(huge).Status);
         Assert.Equal(RunStatus.Ok, CronRunText.Parse(Header + "**Response Characters:** 999999\n## Response\n\nshort\n").Status);
+    }
+
+    // ---- JobRunDetails ----
+
+    private static CronJob Job(string id = "j1") =>
+        new(id, "mail", "/bookahmail-mail", "every 1h", "scheduled", true, null, null, "ok", null, null, null, null, "default", null, null, "every 1h");
+
+    private static JobResult AgentRun(string sessionId = "s1") => new(Job(), new SessionSummary(sessionId, "run", "/bookahmail-mail", "cron"), false);
+
+    private static JobResult ScriptRun(string preview = "# Cron Job: mail **Job ID:** j1 **Run Time:** now **Mode:** no_agent (script) --- short preview") =>
+        new(Job(), new SessionSummary("cron_output:j1:2026-10-28_09-50-49", preview, preview, "cron_output"), false);
+
+    private sealed class FakeRpc(Func<string, JsonObject?, Task<JsonNode?>> answer) : IJsonRpcPeer
+    {
+        public readonly List<string> Args = new();
+        public Task<JsonNode?> RequestAsync(string method, JsonObject? parameters = null, TimeSpan? timeout = null, CancellationToken ct = default)
+        {
+            Assert.Equal("command.dispatch", method);
+            Args.Add(parameters!["name"]!.GetValue<string>() + " " + parameters["arg"]!.GetValue<string>());
+            return answer(method, parameters);
+        }
+    }
+
+    private static Task<JsonNode?> Plugin(string output) => Task.FromResult<JsonNode?>(new JsonObject { ["type"] = "plugin", ["output"] = output });
+
+    [Fact]
+    public async Task An_agent_runs_result_is_its_last_answer_and_none_yet_means_no_detail()
+    {
+        IReadOnlyList<SessionMessage> rows =
+        [
+            new("1", "user", "/bookahmail-mail"), new("2", "assistant", "Checking."), new("3", "tool", "{}"),
+            new("4", "assistant", "You have 2 important mails."), new("5", "assistant", "  ")
+        ];
+        var details = new JobRunDetails((id, profile, limit, ct) => Task.FromResult(rows), () => null);
+        var d = await details.LoadAsync(AgentRun(), default);
+        Assert.Equal(new RunText(RunStatus.Ok, "You have 2 important mails.", null), d!.Result);
+        Assert.False(d.FromPlugin);
+
+        var none = new JobRunDetails((id, profile, limit, ct) => Task.FromResult<IReadOnlyList<SessionMessage>>([new("1", "user", "go")]), () => null);
+        Assert.Null(await none.LoadAsync(AgentRun(), default));
+    }
+
+    [Fact]
+    public async Task A_script_runs_output_comes_from_the_plugin_when_it_is_there()
+    {
+        var rpc = new FakeRpc((_, _) => Plugin("""{"ok":true,"text":"# Cron Job: mail\n\n**Job ID:** j1\n**Run Time:** now\n**Mode:** no_agent (script)\n\n---\n\nThe whole output.\n","truncated":false}"""));
+        var details = new JobRunDetails((_, _, _, _) => throw new InvalidOperationException("not a chat"), () => rpc);
+        var d = await details.LoadAsync(ScriptRun(), default);
+        Assert.Equal("The whole output.", d!.Result.Text);
+        Assert.True(d.FromPlugin);
+        Assert.Equal(["hikyaku-cron output default j1 2026-10-28_09-50-49"], rpc.Args);
+        Assert.True(details.PluginPresent);
+    }
+
+    [Fact]
+    public async Task Without_the_plugin_the_cleaned_preview_is_used_and_the_absence_is_remembered()
+    {
+        var rpc = new FakeRpc((_, _) => throw new RpcException(InboxApi.NotACommand, "not a command"));
+        var details = new JobRunDetails((_, _, _, _) => throw new InvalidOperationException(), () => rpc);
+        var d = await details.LoadAsync(ScriptRun(), default);
+        Assert.Equal("short preview", d!.Result.Text);
+        Assert.False(d.FromPlugin);
+        Assert.False(details.PluginPresent);
+        await details.LoadAsync(ScriptRun(), default);
+        Assert.Single(rpc.Args);                                               // not asked again
+
+        var garbled = new JobRunDetails((_, _, _, _) => throw new InvalidOperationException(), () => new FakeRpc((_, _) => Plugin("not json")));
+        Assert.Equal("short preview", (await garbled.LoadAsync(ScriptRun(), default))!.Result.Text);
+        Assert.False(garbled.PluginPresent);
+
+        var missing = new JobRunDetails((_, _, _, _) => throw new InvalidOperationException(), () => new FakeRpc((_, _) => Plugin("""{"ok":false,"error":"not_found"}""")));
+        Assert.Equal("short preview", (await missing.LoadAsync(ScriptRun(), default))!.Result.Text);
+        Assert.True(missing.PluginPresent);                                    // the plugin is there; this run's file is not
     }
 
     [Fact]
