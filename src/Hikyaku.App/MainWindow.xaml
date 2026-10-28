@@ -1510,6 +1510,25 @@
           <TextBlock Text="{Binding TerminalOptInLabel}" Foreground="{DynamicResource Brush.TextMuted}"
                      FontSize="{StaticResource Size.Caption}" Margin="0,0,0,6"
                      AutomationProperties.Name="Terminal opt-in status"/>
+          <TextBlock Text="Shared from this PC" FontWeight="SemiBold" Margin="0,4,0,4"/>
+          <TextBlock Text="{Binding FolderBridgePluginHint}" Visibility="{Binding FolderBridgePluginHintVisibility}"
+                     TextWrapping="Wrap" Foreground="{DynamicResource Brush.Warning}"
+                     FontSize="{StaticResource Size.Caption}" Margin="0,0,0,4"
+                     AutomationProperties.Name="Folder bridge plugin hint"/>
+          <ItemsControl ItemsSource="{Binding BridgeShares}" Margin="0,0,0,8"
+                        AutomationProperties.Name="Folders shared from this PC">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <DockPanel Margin="0,2">
+                  <Button DockPanel.Dock="Right" Content="Remove" Style="{StaticResource CompactChip}"
+                          Command="{Binding DataContext.RemoveBridgeShareCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                          CommandParameter="{Binding}"
+                          AutomationProperties.Name="Stop sharing this path"/>
+                  <TextBlock Text="{Binding Label}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                </DockPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
           <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
             <Button Content="Files" Command="{Binding ShowProjectFilesTabCommand}" Style="{StaticResource CompactChip}"/>
             <Button Content="Preview" Command="{Binding ShowProjectPreviewTabCommand}" Style="{StaticResource CompactChip}"/>

@@ -38,7 +38,8 @@ public class Checkpoint36ExperienceTests
             ExperienceFeature.ModelChip, ExperienceFeature.BranchChat, ExperienceFeature.ReasoningChip, ExperienceFeature.FastChip,
             ExperienceFeature.ToolDetails, ExperienceFeature.SessionFilters, ExperienceFeature.ReasoningDetails, ExperienceFeature.AgentPlan, ExperienceFeature.AgentNotices,
             ExperienceFeature.SettingsConnection, ExperienceFeature.SettingsAccess,
-            ExperienceFeature.SettingsProfiles, ExperienceFeature.SettingsApprovals, ExperienceFeature.SettingsNotifications
+            ExperienceFeature.SettingsProfiles, ExperienceFeature.SettingsApprovals, ExperienceFeature.SettingsNotifications,
+            ExperienceFeature.SettingsFolderKeyFiles
         ];
         Assert.All(admin, f => Assert.False(Experience.IsVisible(f, advanced: false), f.ToString()));
         Assert.Equal(admin.Order(), Experience.AdvancedOnly.Order());       // nothing is hidden that is not listed, and nothing listed is shown
@@ -60,7 +61,7 @@ public class Checkpoint36ExperienceTests
         var p = SettingsSections.For(advanced: false, setupNeeded: false);
         Assert.True(p.SignInButtons && p.Credentials && p.AccountHeading);           // signing in again must stay possible
         Assert.False(p.FullSignInLabel);
-        Assert.False(p.Connection || p.ConnectionHint || p.Access || p.Profiles || p.Approvals || p.Notifications);
+        Assert.False(p.Connection || p.ConnectionHint || p.Access || p.Profiles || p.Approvals || p.Notifications || p.FolderKeyFiles);
         Assert.True(p.Updates);                                                      // 0.6.1: updates in Simple too
     }
 
@@ -69,7 +70,7 @@ public class Checkpoint36ExperienceTests
     {
         var p = SettingsSections.For(advanced: false, setupNeeded: true);
         Assert.True(p.Connection && p.ConnectionHint && p.Profiles && p.FullSignInLabel);   // otherwise "Open Settings to add a profile" is a dead end
-        Assert.False(p.Access || p.Approvals || p.Notifications);
+        Assert.False(p.Access || p.Approvals || p.Notifications || p.FolderKeyFiles);
     }
 
     [Theory]
@@ -78,7 +79,7 @@ public class Checkpoint36ExperienceTests
     public void Advanced_settings_show_every_section_whether_or_not_setup_is_needed(bool setup)
     {
         var p = SettingsSections.For(advanced: true, setupNeeded: setup);
-        Assert.True(p.Connection && p.ConnectionHint && p.Credentials && p.SignInButtons && p.Access && p.Updates && p.Profiles && p.Approvals && p.Notifications && p.FullSignInLabel);
+        Assert.True(p.Connection && p.ConnectionHint && p.Credentials && p.SignInButtons && p.Access && p.Updates && p.Profiles && p.Approvals && p.Notifications && p.FolderKeyFiles && p.FullSignInLabel);
         Assert.False(p.AccountHeading);
     }
 

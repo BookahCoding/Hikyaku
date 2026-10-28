@@ -144,6 +144,8 @@ public partial class MainWindow : Window
         HookAttachmentPasteAndDrop();
         _vm.EarlierLoaded += ScrollMessageIntoView;   // keep the reader on the message they were at
         _vm.AttachFolderGrants(_folderGrants);
+        _vm.AttachFolderBridge(new FolderBridgeStore(
+            new FilePreferenceStore(Path.Combine(App.DataDir, "folder-bridge.json"))));
         _vm.AttachNetworkPublish(networkPublish, new SetupRequiredGitHubPullRequestApi());
         _vm.AttachTerminal(terminalOptIn, terminalController);
         _vm.AttachVoice(BuildVoiceController());
@@ -201,6 +203,7 @@ public partial class MainWindow : Window
         Closed += (_, _) => _vm.EndVoiceChat(null);
         Closed += async (_, _) =>
         {
+            _vm.StopFolderBridge();
             _jobInboxPoll?.Cancel();
             _needsNotifier?.Dispose();
             DetachNeedsYou();
@@ -438,6 +441,7 @@ public partial class MainWindow : Window
                 {
                     StartNeedsYouPump();
                     StartSubagentPump();
+                    _vm.StartFolderBridge();
                     _ = _vm.RefreshSessionsAsync();
                     _ = _vm.RefreshApprovalsRiskAsync();   // Simple view shows "approvals are Off" if that is the case
                     _vm.RaiseIdentity();
@@ -664,6 +668,7 @@ public partial class MainWindow : Window
     {
         var dlg = new SettingsWindow(_settings, _settingsPath, _selection, _secrets, () => _hermes?.Auth, NativeTokens, AccessTokens)
         { Owner = this, CheckUpdatesOnOpen = checkUpdates };
+        dlg.BindFolderBridge(_vm);
         dlg.ShowDialog();
         _vm.ApplyExperience(_settings.IsAdvanced);
         ApplyThemeFromSettings();
@@ -673,6 +678,7 @@ public partial class MainWindow : Window
         {
             if (_hermes is not null)
             {
+                _vm.StopFolderBridge();
                 DetachNeedsYou();
                 DetachSubagents();
                 _hermes.DisposeAsync().AsTask().GetAwaiter().GetResult();

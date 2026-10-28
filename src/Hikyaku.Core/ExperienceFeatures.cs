@@ -19,6 +19,8 @@ public enum ExperienceFeature
     // settings sections
     SettingsAccount, SettingsAppearance, SettingsExperience,
     SettingsConnection, SettingsAccess, SettingsUpdates, SettingsProfiles, SettingsApprovals, SettingsNotifications,
+    // opening every key file in a shared folder; Advanced only (an ask for one file still shows in both views)
+    SettingsFolderKeyFiles,
 }
 
 /// <summary>
@@ -55,7 +57,7 @@ public static class Experience
 /// <summary>Which parts of the Settings window show (the window applies exactly this).</summary>
 public sealed record SettingsSectionPlan(
     bool Connection, bool ConnectionHint, bool Credentials, bool SignInButtons, bool AccountHeading, bool FullSignInLabel,
-    bool Access, bool Updates, bool Profiles, bool Approvals, bool Notifications);
+    bool Access, bool Updates, bool Profiles, bool Approvals, bool Notifications, bool FolderKeyFiles);
 
 public static class SettingsSections
 {
@@ -79,6 +81,7 @@ public static class SettingsSections
             Updates: V(ExperienceFeature.SettingsUpdates),
             Profiles: Setup(ExperienceFeature.SettingsProfiles),
             Approvals: V(ExperienceFeature.SettingsApprovals),
-            Notifications: V(ExperienceFeature.SettingsNotifications));
+            Notifications: V(ExperienceFeature.SettingsNotifications),
+            FolderKeyFiles: V(ExperienceFeature.SettingsFolderKeyFiles));
     }
 }

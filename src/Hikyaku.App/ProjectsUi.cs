@@ -85,7 +85,7 @@ public partial class MainViewModel
     {
         _folderGrants = store;
         GrantFolderCommand = new RelayCommand(_ => _ = GrantFolderAsync());
-        RevokeFolderCommand = new RelayCommand(_ => _ = RevokeFolderAsync(), _ => _folderGrants is not null);
+        RevokeFolderCommand = new RelayCommand(_ => _ = RevokeFolderAsync(), _ => _folderGrants is not null || _bridgeStore is not null);
         RefreshProjectCommand = new RelayCommand(_ => _ = RefreshProjectAsync());
         OpenProjectEntryCommand = new RelayCommand(p => _ = OpenProjectEntryAsync(p));
         ShareProjectFileCommand = new RelayCommand(p => _ = ShareProjectFileAsync(p), _ => SelectedConversation is not null);
@@ -272,7 +272,7 @@ public partial class MainViewModel
 
     private async Task RevokeFolderAsync()
     {
-        if (_folderGrants is null) return;
+        if (_folderGrants is null && _bridgeStore is null) return;
         var key = ActiveProjectProfile();
         if (key is null) return;
         var plain = !_advanced;     // Simple view says it in everyday words
@@ -280,7 +280,16 @@ public partial class MainViewModel
                                   : "Revoke this profile’s folder grant? (Does not delete your files.)",
                 plain ? "Stop sharing" : "Revoke grant", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
             return;
-        await _folderGrants.RevokeAsync(key.Value).ConfigureAwait(true);
+        if (_folderGrants is not null)
+            await _folderGrants.RevokeAsync(key.Value).ConfigureAwait(true);
+        if (_bridgeStore is not null)
+        {
+            var shared = await _bridgeStore.GetAsync(key.Value).ConfigureAwait(true);
+            foreach (var folder in shared.Folders)
+                await _bridgeStore.RemoveFolderAsync(key.Value, folder.CanonicalRoot).ConfigureAwait(true);
+            foreach (var file in shared.KeyFiles)
+                await _bridgeStore.RevokeKeyFileAsync(key.Value, file.CanonicalPath).ConfigureAwait(true);
+        }
         ProjectFiles.Clear();
         GitChanges.Clear();
         GitWorktrees.Clear();
@@ -291,6 +300,7 @@ public partial class MainViewModel
         CurrentProjectBranchHint = null;
         ProjectRootLabel = "No folder granted for this profile.";
         ProjectStatus = "Grant revoked.";
+        await RefreshBridgeSharesAsync().ConfigureAwait(true);
         RaiseIdentity();
     }
 

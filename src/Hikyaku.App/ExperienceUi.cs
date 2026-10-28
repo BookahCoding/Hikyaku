@@ -111,6 +111,8 @@ public sealed partial class MainViewModel
             var parts = new List<string>();
             if (!string.IsNullOrWhiteSpace(CurrentProjectPathHint))
                 parts.Add("A folder on this computer is shared with Hermes (" + System.IO.Path.GetFileName(CurrentProjectPathHint.TrimEnd('\\', '/')) + ").");
+            if (BridgeShares.Count > 0)
+                parts.Add("A folder on this computer is shared with Hermes.");
             if (_terminal?.ActiveSession is not null) parts.Add("A terminal is open on this computer.");
             if (_approvalsOff) parts.Add("Hermes is set to run commands without asking you first.");
             if (_riskActionError.Length > 0) parts.Add(_riskActionError);
@@ -119,7 +121,8 @@ public sealed partial class MainViewModel
     }
 
     public Visibility RiskNoticeVisibility => !_advanced && RiskNotice.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility StopSharingVisibility => !string.IsNullOrWhiteSpace(CurrentProjectPathHint) ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility StopSharingVisibility =>
+        !string.IsNullOrWhiteSpace(CurrentProjectPathHint) || BridgeShares.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility CloseTerminalNoticeVisibility => _terminal?.ActiveSession is not null ? Visibility.Visible : Visibility.Collapsed;
     public Visibility AskFirstVisibility => _approvalsOff ? Visibility.Visible : Visibility.Collapsed;
 
@@ -142,7 +145,8 @@ public sealed partial class MainViewModel
             nameof(ModelChipVisibility), nameof(BranchVisibility), nameof(ReasoningChipVisibility), nameof(FastChipVisibility),
             nameof(SessionFiltersVisibility), nameof(SettingsConnectionVisibility), nameof(VoiceStatusVisibility),
             nameof(InboxSetupVisibility), nameof(InboxSimpleIntroVisibility), nameof(ConfigEditorVisibility), nameof(McpEditVisibility),
-            nameof(ReasoningDetailsVisibility), nameof(PlanDetailsVisibility), nameof(NoticeDetailsVisibility), nameof(UpdateNoticeVisibility), nameof(VoiceChatButtonVisibility), nameof(JobInboxPluginHintVisibility), nameof(AdvancedActivityVisibility), nameof(SimpleActivityVisibility)
+            nameof(ReasoningDetailsVisibility), nameof(PlanDetailsVisibility), nameof(NoticeDetailsVisibility), nameof(UpdateNoticeVisibility), nameof(VoiceChatButtonVisibility), nameof(JobInboxPluginHintVisibility), nameof(AdvancedActivityVisibility), nameof(SimpleActivityVisibility),
+            nameof(FolderKeyFilesVisibility), nameof(FolderBridgePluginHint), nameof(FolderBridgePluginHintVisibility)
         }) Raise(n);
         RaiseRiskNotice();
         RaiseStatus();

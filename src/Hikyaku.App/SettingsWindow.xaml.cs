@@ -22,6 +22,8 @@ public partial class SettingsWindow : Window
     private ApprovalMode _loadedMode = ApprovalMode.Manual;
     private bool _approvalSupported;
     private bool _suppressPreview;
+    private bool _bridgeSuppress;
+    private MainViewModel? _bridgeVm;
 
     /// <summary>Opened from the "Update to x.y.z" button: go to Updates and check at once.</summary>
     public bool CheckUpdatesOnOpen { get; init; }
@@ -540,6 +542,23 @@ public partial class SettingsWindow : Window
         }
     }
 
+    /// <summary>The Advanced switch that opens every key file in folders this profile has shared.</summary>
+    internal void BindFolderBridge(MainViewModel vm)
+    {
+        _bridgeVm = vm;
+        _bridgeSuppress = true;
+        FolderKeyFilesSwitch.IsChecked = vm.FolderKeyFilesOpen;
+        FolderBridgePluginHint.Text = vm.FolderBridgePluginHint;
+        FolderBridgePluginHint.Visibility = vm.FolderBridgePluginHint.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+        _bridgeSuppress = false;
+    }
+
+    private async void FolderKeyFiles_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_bridgeSuppress || _bridgeVm is null || FolderKeyFilesSwitch is null) return;
+        await _bridgeVm.SetFolderKeyFilesOpenAsync(FolderKeyFilesSwitch.IsChecked == true);
+    }
+
     private void Mode_Changed(object sender, RoutedEventArgs e)
     {
         if (ConnectionSection is null) return;   // raised while the window is still being built
@@ -571,6 +590,7 @@ public partial class SettingsWindow : Window
         ProfilesSection.Visibility = V(plan.Profiles);
         ApprovalsSection.Visibility = V(plan.Approvals);
         NotificationsSection.Visibility = V(plan.Notifications);
+        FolderKeyFilesSection.Visibility = V(plan.FolderKeyFiles);
     }
 
     private async void Save_Click(object sender, RoutedEventArgs e)

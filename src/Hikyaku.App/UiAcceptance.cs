@@ -813,6 +813,7 @@ public static class UiAcceptance
         Check("profiles", w.ProfilesSection, plan.Profiles);
         Check("approvals", w.ApprovalsSection, plan.Approvals);
         Check("notifications", w.NotificationsSection, plan.Notifications);
+        Check("key files", w.FolderKeyFilesSection, plan.FolderKeyFiles);
         // 0.5.2: each section is also offered in the list on the left exactly when it has something to show.
         Check("profiles in the list", w.NavProfiles, plan.Profiles);
         Check("safety in the list", w.NavSafety, plan.Approvals);

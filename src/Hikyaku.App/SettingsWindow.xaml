@@ -286,6 +286,19 @@
               </StackPanel>
             </Border>
           </StackPanel>
+          <StackPanel x:Name="FolderKeyFilesSection" Margin="0,12,0,0">
+            <Border Style="{StaticResource Card}">
+              <StackPanel>
+                <TextBlock Style="{StaticResource GroupTitle}" Text="Key files in shared folders"/>
+                <TextBlock Style="{StaticResource Hint}"
+                           Text="A file whose name looks like a key or a password stays blocked until you allow that one file, or turn this on. A document that merely contains a password stays readable."/>
+                <CheckBox x:Name="FolderKeyFilesSwitch" Content="Open every key file in shared folders" Margin="0,8,0,0"
+                          Checked="FolderKeyFiles_Changed" Unchecked="FolderKeyFiles_Changed"
+                          AutomationProperties.Name="Open every key file"/>
+                <TextBlock x:Name="FolderBridgePluginHint" Style="{StaticResource Hint}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+              </StackPanel>
+            </Border>
+          </StackPanel>
         </StackPanel>
 
         <!-- Connection -->
