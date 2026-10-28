@@ -5,10 +5,11 @@ are `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
-## 0.7.0 — the Inbox shows what each job found
+## 0.7.0 — Inbox results, and folders on this PC
 
 Plain-text release notes: [docs/release-notes/v0.7.0.txt](docs/release-notes/v0.7.0.txt). Design:
-docs/superpowers/specs/2026-10-28-inbox-results-design.md.
+docs/superpowers/specs/2026-10-28-inbox-results-design.md and
+docs/superpowers/specs/2026-10-28-folder-bridge-design.md.
 
 - Each Inbox result shows what the run found: the agent's final answer, or the script's output without the run
   document's header, instead of the header or the job's own prompt. Click a result to read it whole in place; an agent
@@ -20,6 +21,12 @@ docs/superpowers/specs/2026-10-28-inbox-results-design.md.
 - New, optional Hermes plugin `hikyaku-cron` (in this repository, `hermes-plugin/hikyaku-cron`): one read-only command that
   returns a script-only run's whole output; without it those rows show the dashboard's short preview. Install on the
   gateway with `hermes plugins install BookahCoding/Hikyaku/hermes-plugin/hikyaku-cron --enable`.
+- While Hikyaku is open and connected, Hermes can list, read, and write inside folders allowed on this PC. The first
+  use asks: a folder picker, or allow or deny for a network path. Deletes ask every time, including a folder and
+  everything inside it. Files stay on the PC. A link that leaves the folder is refused. Key-like file names stay
+  blocked unless that file is allowed, or the Advanced switch is on. Optional plugin `hikyaku-files`:
+  `hermes plugins install BookahCoding/Hikyaku/hermes-plugin/hikyaku-files --enable`.
+  Design: docs/superpowers/plans/2026-10-28-folder-bridge.md.
 - Merged contributions: a Copy button on each message; drafts kept when two saves overlap; reasoning painted in small
   batches; a tighter recent-chat list; the remove-file button named for screen readers.
 - The × on a file you are about to send is named for that file (for example "Remove notes.txt") for screen readers, with a tooltip that the file has not been sent.

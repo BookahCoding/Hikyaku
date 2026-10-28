@@ -10,7 +10,7 @@ It is an independent, community-built client. It is not made by or affiliated wi
 
 ## Status
 
-**v0.5.0, first public test release.** Everything has been built against the published Hermes protocol and tested with
+**v0.7.0.** Everything has been built against the published Hermes protocol and tested with
 automated tests against a simulated gateway (about 1,250 tests), and it is in daily use on one real gateway. Expect rough
 edges with other servers and please report them (see below); fixes arrive as in-app updates.
 
@@ -22,6 +22,8 @@ edges with other servers and please report them (see below); fixes arrive as in-
 - **Inbox** for the results of your scheduled jobs: what each run found at a glance, failures marked, unread dots, opened in
   place or asked about in a chat (the optional `hikyaku-cron` Hermes plugin shows script-only jobs' whole output), and **Needs you** for
   approvals and questions the agent is waiting on, with Windows notifications if you turn them on.
+- **Folders on this PC**, while Hikyaku is open: Hermes can list, read, and write inside folders you allow. Hikyaku asks
+  the first time, a delete asks every time, and the files stay on your PC. The optional `hikyaku-files` plugin is what the agent calls.
 - **Advanced tools** for whoever looks after the gateway: scheduled jobs, skills, toolsets and MCP servers, the skills hub,
   a settings editor and `config.yaml` editor, insights, hosted rooms, artifacts, the memory graph (Journey), and local
   projects with folder sharing, Git checkpoints and a local terminal.

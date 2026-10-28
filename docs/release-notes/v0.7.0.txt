@@ -1,4 +1,4 @@
-Hikyaku 0.7.0 - the Inbox shows what each job found
+Hikyaku 0.7.0 - Inbox results, and folders on this PC
 
 - Each Inbox result now shows what the run found: the agent's answer, or the script's output, instead of the "# Cron Job" header or the job's own prompt.
 - Click a result to read it whole in place. Agent results have "Ask about this" to follow up in a chat.
@@ -6,4 +6,5 @@ Hikyaku 0.7.0 - the Inbox shows what each job found
 - The hikyaku-cron command answers only Hikyaku. A chat app connected to the gateway cannot use it to read a job's output.
 - Unread results have a dot until you open them, folders show how many are new, and "Mark all as read" clears them. This is remembered on your PC.
 - Optional: install the small hikyaku-cron plugin on your Hermes gateway to see the whole output of script-only jobs (without it they show a short preview). On the gateway machine run: hermes plugins install BookahCoding/Hikyaku/hermes-plugin/hikyaku-cron --enable
+- While Hikyaku is open and connected, Hermes can list, read, and write inside folders you allow on this PC. Hikyaku asks the first time: you choose the folder, or you allow or deny a network path. A delete asks every time, and a folder delete says that everything inside goes. Files stay on this PC. Key files stay blocked unless you allow that one file, or turn on the switch in Advanced. Optional: hermes plugins install BookahCoding/Hikyaku/hermes-plugin/hikyaku-files --enable
 - Also: a Copy button on each message, unsent drafts kept when two saves overlap, smoother reasoning while a reply thinks, a tighter recent-chat list, and the remove-file button named for screen readers.
