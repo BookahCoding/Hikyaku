@@ -34,6 +34,11 @@ public sealed class VoiceChatSession(IVoiceChatHost host, VoiceChatSettings sett
 {
     public const string NeedsYouLine = "Hermes needs you. Please check the screen.";
     public const string NobodySpokeProblem = "Nobody spoke, so the voice chat ended.";
+    public const string MicSilentProblem =
+        "The microphone sends no sound at all. Windows may be blocking it: Settings, Privacy & security, Microphone, "
+        + "\"Let desktop apps access your microphone\". Or it is muted.";
+    /// <summary>How long a microphone may send pure digital silence (every sample zero) before the chat says so.</summary>
+    private const long SilentMicMs = 1_500;
     private const int SampleRate = 16_000;
     private const int MaxQuietListens = 3;
     private const int MaxFailures = 2;
@@ -51,6 +56,8 @@ public sealed class VoiceChatSession(IVoiceChatHost host, VoiceChatSettings sett
     private bool _cutIn, _hearing, _speechOpen, _speechStopped, _turnEnded, _playing, _waiting;
     private string _sent = "", _replyFull = "", _lastSpoken = "";
     private float _roomFloor;
+    private long _firstFrameMs = -1;
+    private bool _micAlive;
 
     public VoiceChatPhase Phase { get; private set; } = VoiceChatPhase.Off;
     /// <summary>Why the chat ended or what last went wrong, in plain words; null when nothing did.</summary>
@@ -166,6 +173,13 @@ public sealed class VoiceChatSession(IVoiceChatHost host, VoiceChatSettings sett
     private void Frame(short[] pcm, long atMs)
     {
         Level = VoiceLevel.Of(pcm);
+        // Live finding: a microphone Windows keeps from desktop apps delivers frames of exact zeros, never noise.
+        if (!_micAlive)
+        {
+            if (_firstFrameMs < 0) _firstFrameMs = atMs;
+            if (Array.Exists(pcm, s => s != 0)) _micAlive = true;
+            else if (atMs - _firstFrameMs >= SilentMicMs) { EndLocked(MicSilentProblem); return; }
+        }
         switch (Phase)
         {
             case VoiceChatPhase.Listening:

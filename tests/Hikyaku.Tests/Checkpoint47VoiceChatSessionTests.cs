@@ -198,6 +198,21 @@ public class Checkpoint47VoiceChatSessionTests
     }
 
     [Fact]
+    public void A_microphone_that_sends_only_digital_silence_ends_the_chat_at_once_with_where_to_look()
+    {
+        // Live finding: on a PC where Windows blocks desktop apps from the microphone, every sample is exactly zero.
+        var (s, host, mic) = Start();
+        mic.Frames(0f, 1600);
+        Assert.Equal(VoiceChatPhase.Ended, s.Phase);
+        Assert.Contains("Microphone", s.Problem);
+        Assert.Equal(0, host.Transcribes);
+
+        var (quiet, _, quietMic) = Start();
+        quietMic.Frames(0.002f, 1600);                                    // a real quiet room is never exactly zero
+        Assert.Equal(VoiceChatPhase.Listening, quiet.Phase);
+    }
+
+    [Fact]
     public void Two_failures_in_a_row_end_the_chat_with_the_reason()
     {
         var (s, host, mic) = Start();
