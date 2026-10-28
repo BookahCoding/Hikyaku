@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using System.Text.Json.Nodes;
 using Hikyaku.Core;
 using Xunit;
 using Xunit.Abstractions;
@@ -197,6 +198,160 @@ public class Checkpoint50FolderBridgeTests
         Assert.False(profile.KeyFilesOpen);
     }
 
+    [Fact]
+    public async Task No_client_does_not_dispatch_and_an_idle_poll_asks_nothing()
+    {
+        var prompts = new FakePrompts();
+        var loop = new FolderBridgeLoop(() => null, new FolderBridgeStore(new BridgeMemory()), () => Key("a"), prompts);
+        await loop.TickAsync(CancellationToken.None);
+        Assert.Empty(prompts.Calls);
+
+        var peer = new ScriptPeer(_ => new JsonObject { ["ok"] = true, ["pending"] = false });
+        loop = new FolderBridgeLoop(() => peer, new FolderBridgeStore(new BridgeMemory()), () => Key("a"), prompts);
+        await loop.TickAsync(CancellationToken.None);
+        Assert.Empty(prompts.Calls);
+    }
+
+    [Fact]
+    public async Task Choosing_the_folder_that_holds_the_path_reads_it_and_keeps_the_older_folder()
+    {
+        using var dir = new TempTree();
+        var older = Path.Combine(dir.Parent, "older");
+        Directory.CreateDirectory(older);
+        var file = Path.Combine(dir.Root, "note.txt");
+        File.WriteAllText(file, "hello");
+        var store = new FolderBridgeStore(new BridgeMemory());
+        await store.AddFolderAsync(Key("a"), older, false);
+        var prompts = new FakePrompts { Folder = dir.Root };
+        var peer = ScriptPeer.One("read", file, "a");
+        var loop = new FolderBridgeLoop(() => peer, store, () => Key("a"), prompts);
+        await loop.TickAsync(CancellationToken.None);
+
+        Assert.Equal(2, (await store.GetAsync(Key("a"))).Folders.Count);
+        Assert.Contains("hello", peer.Answers.Single());
+    }
+
+    [Fact]
+    public async Task Cancelling_the_folder_ask_writes_nothing()
+    {
+        using var dir = new TempTree();
+        var file = Path.Combine(dir.Root, "note.txt");
+        var store = new FolderBridgeStore(new BridgeMemory());
+        var peer = ScriptPeer.One("write", file, "a", text: "nope");
+        var loop = new FolderBridgeLoop(() => peer, store, () => Key("a"), new FakePrompts { Folder = null });
+        await loop.TickAsync(CancellationToken.None);
+        Assert.Empty((await store.GetAsync(Key("a"))).Folders);
+        Assert.False(File.Exists(file));
+        Assert.Contains("cancelled", peer.Answers.Single());
+    }
+
+    [Fact]
+    public async Task A_chosen_folder_that_still_misses_the_path_is_kept_and_the_file_stays()
+    {
+        using var dir = new TempTree();
+        var other = Path.Combine(dir.Parent, "other");
+        Directory.CreateDirectory(other);
+        var file = Path.Combine(dir.Root, "note.txt");
+        File.WriteAllText(file, "stay");
+        var store = new FolderBridgeStore(new BridgeMemory());
+        var peer = ScriptPeer.One("read", file, "a");
+        var loop = new FolderBridgeLoop(() => peer, store, () => Key("a"), new FakePrompts { Folder = other });
+        await loop.TickAsync(CancellationToken.None);
+        Assert.Contains((await store.GetAsync(Key("a"))).Folders, f => f.CanonicalRoot == other);
+        Assert.Equal("stay", File.ReadAllText(file));
+        Assert.Contains("outside", peer.Answers.Single());
+    }
+
+    [Fact]
+    public async Task A_network_path_is_remembered_only_when_allowed()
+    {
+        var store = new FolderBridgeStore(new BridgeMemory());
+        var denied = ScriptPeer.One("read", @"\\server\share\a.txt", "a");
+        await new FolderBridgeLoop(() => denied, store, () => Key("a"), new FakePrompts { Network = false })
+            .TickAsync(CancellationToken.None);
+        Assert.Empty((await store.GetAsync(Key("a"))).Folders);
+        Assert.Contains("cancelled", denied.Answers.Single());
+
+        var allowed = ScriptPeer.One("read", @"\\server\share\a.txt", "a");
+        await new FolderBridgeLoop(() => allowed, store, () => Key("a"), new FakePrompts { Network = true })
+            .TickAsync(CancellationToken.None);
+        Assert.Contains((await store.GetAsync(Key("a"))).Folders, f => f.Network && f.CanonicalRoot == @"\\server\share");
+        Assert.Contains("missing", allowed.Answers.Single());
+    }
+
+    [Fact]
+    public async Task A_key_file_is_read_only_after_it_is_allowed()
+    {
+        using var dir = new TempTree();
+        var key = Path.Combine(dir.Root, "id_rsa");
+        File.WriteAllBytes(key, [7, 7]);
+        var store = new FolderBridgeStore(new BridgeMemory());
+        await store.AddFolderAsync(Key("a"), dir.Root, false);
+        var refused = ScriptPeer.One("read", key, "a");
+        await new FolderBridgeLoop(() => refused, store, () => Key("a"), new FakePrompts { KeyFile = false })
+            .TickAsync(CancellationToken.None);
+        Assert.Contains("cancelled", refused.Answers.Single());
+        Assert.DoesNotContain("encoding", refused.Answers.Single());
+
+        var allowed = ScriptPeer.One("read", key, "a");
+        await new FolderBridgeLoop(() => allowed, store, () => Key("a"), new FakePrompts { KeyFile = true })
+            .TickAsync(CancellationToken.None);
+        Assert.NotEmpty((await store.GetAsync(Key("a"))).KeyFiles);
+        Assert.Contains("encoding", allowed.Answers.Single());
+    }
+
+    [Fact]
+    public async Task A_folder_delete_runs_only_after_yes()
+    {
+        using var dir = new TempTree();
+        var box = Path.Combine(dir.Root, "box");
+        Directory.CreateDirectory(box);
+        File.WriteAllText(Path.Combine(box, "inside.txt"), "x");
+        var store = new FolderBridgeStore(new BridgeMemory());
+        await store.AddFolderAsync(Key("a"), dir.Root, false);
+
+        var no = ScriptPeer.One("delete_folder", box, "a");
+        await new FolderBridgeLoop(() => no, store, () => Key("a"), new FakePrompts { Delete = false })
+            .TickAsync(CancellationToken.None);
+        Assert.True(File.Exists(Path.Combine(box, "inside.txt")));
+        Assert.Contains("cancelled", no.Answers.Single());
+
+        var yes = ScriptPeer.One("delete_folder", box, "a");
+        await new FolderBridgeLoop(() => yes, store, () => Key("a"), new FakePrompts { Delete = true })
+            .TickAsync(CancellationToken.None);
+        Assert.False(Directory.Exists(box));
+        Assert.Contains("\"ok\":true", yes.Answers.Single().Replace(" ", ""));
+    }
+
+    [Fact]
+    public async Task A_dropped_lease_does_not_write()
+    {
+        using var dir = new TempTree();
+        var file = Path.Combine(dir.Root, "new.txt");
+        var store = new FolderBridgeStore(new BridgeMemory());
+        var peer = ScriptPeer.One("write", file, "a", text: "secret", holdOk: false);
+        await new FolderBridgeLoop(() => peer, store, () => Key("a"), new FakePrompts { Folder = dir.Root })
+            .TickAsync(CancellationToken.None);
+        Assert.False(File.Exists(file));
+        Assert.Empty(peer.Answers);
+    }
+
+    [Fact]
+    public async Task A_missing_command_is_remembered_and_another_profile_is_refused()
+    {
+        var prompts = new FakePrompts();
+        var missing = new ScriptPeer(_ => throw new RpcException(InboxApi.NotACommand, "no"));
+        var loop = new FolderBridgeLoop(() => missing, new FolderBridgeStore(new BridgeMemory()), () => Key("a"), prompts);
+        await loop.TickAsync(CancellationToken.None);
+        Assert.True(loop.PluginMissing);
+
+        var peer = ScriptPeer.One("read", @"D:\nope", "other");
+        await new FolderBridgeLoop(() => peer, new FolderBridgeStore(new BridgeMemory()), () => Key("a"), prompts)
+            .TickAsync(CancellationToken.None);
+        Assert.Contains("invalid", peer.Answers.Single());
+        Assert.Empty(prompts.Calls);
+    }
+
     private static bool TryLink(string link, string target)
     {
         try
@@ -244,6 +399,94 @@ public class Checkpoint50FolderBridgeTests
         {
             _content = content;
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakePrompts : IFolderBridgePrompts
+    {
+        public string? Folder { get; set; }
+        public bool Network { get; set; }
+        public bool KeyFile { get; set; }
+        public bool Delete { get; set; }
+        public List<string> Calls { get; } = [];
+
+        public Task<string?> ChooseFolderAsync(string askedPath, CancellationToken ct)
+        {
+            Calls.Add("folder:" + askedPath);
+            return Task.FromResult(Folder);
+        }
+
+        public Task<bool> AllowNetworkAsync(string path, CancellationToken ct)
+        {
+            Calls.Add("network:" + path);
+            return Task.FromResult(Network);
+        }
+
+        public Task<bool> AllowKeyFileAsync(string path, CancellationToken ct)
+        {
+            Calls.Add("key:" + path);
+            return Task.FromResult(KeyFile);
+        }
+
+        public Task<bool> ConfirmDeleteAsync(string path, bool folder, CancellationToken ct)
+        {
+            Calls.Add("delete:" + path + ":" + folder);
+            return Task.FromResult(Delete);
+        }
+    }
+
+    /// <summary>Serves command.dispatch the way the gateway wraps a plugin command.</summary>
+    private sealed class ScriptPeer : IJsonRpcPeer
+    {
+        private readonly Func<string, JsonObject> _on;
+        public List<string> Answers { get; } = [];
+
+        public ScriptPeer(Func<string, JsonObject> on) => _on = on;
+
+        public static ScriptPeer One(string op, string path, string profile, string? text = null, bool holdOk = true)
+        {
+            ScriptPeer? self = null;
+            self = new ScriptPeer(arg =>
+            {
+                var parts = arg.Split(' ', 3);
+                var verb = parts.Length > 0 ? parts[0] : "";
+                if (verb == "pending")
+                {
+                    var body = new JsonObject
+                    {
+                        ["ok"] = true,
+                        ["pending"] = true,
+                        ["id"] = "1",
+                        ["profile"] = profile,
+                        ["op"] = op,
+                        ["path"] = path
+                    };
+                    if (text is not null) body["text"] = text;
+                    return body;
+                }
+                if (verb == "hold")
+                    return holdOk
+                        ? new JsonObject { ["ok"] = true }
+                        : new JsonObject { ["ok"] = false, ["error"] = "not_open" };
+                if (verb == "answer" && parts.Length == 3)
+                {
+                    self!.Answers.Add(parts[2]);
+                    return new JsonObject { ["ok"] = true };
+                }
+                return new JsonObject { ["ok"] = false, ["error"] = "invalid" };
+            });
+            return self;
+        }
+
+        public Task<JsonNode?> RequestAsync(string method, JsonObject? parameters = null, TimeSpan? timeout = null, CancellationToken ct = default)
+        {
+            var arg = parameters?["arg"]?.GetValue<string>() ?? "";
+            var body = _on(arg);
+            return Task.FromResult<JsonNode?>(new JsonObject
+            {
+                ["type"] = "plugin",
+                ["output"] = body.ToJsonString()
+            });
         }
     }
 }
