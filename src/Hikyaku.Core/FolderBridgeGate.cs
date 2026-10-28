@@ -25,8 +25,11 @@ public static class FolderBridgeGate
 
     public static BridgeDecision Decide(BridgeProfile access, string op, string path)
     {
-        if (!TryMatch(access, path, out var root, out var final, out var problem))
-            return problem ?? new BridgeDecision(IsNetwork(path) ? BridgeAsk.AllowNetwork : BridgeAsk.ChooseFolder, path, "");
+        var shown = Present(path);
+        if (shown is null)
+            return new BridgeDecision(BridgeAsk.None, path ?? "", "invalid");
+        if (!TryMatch(access, shown, out var root, out var final, out var problem))
+            return problem ?? new BridgeDecision(IsNetwork(shown) ? BridgeAsk.AllowNetwork : BridgeAsk.ChooseFolder, shown, "");
 
         if (problem is not null) return problem;
 
@@ -47,11 +50,12 @@ public static class FolderBridgeGate
 
     public static BridgeResult Apply(BridgeProfile access, string op, string path, byte[]? write, bool deleteYes)
     {
-        if (HasAds(path)) return BridgeResult.Fail("invalid");
+        var shown = Present(path);
+        if (shown is null || HasAds(shown)) return BridgeResult.Fail("invalid");
         if (op is not ("list" or "read" or "write" or "delete_file" or "delete_folder"))
             return BridgeResult.Fail("invalid");
 
-        if (!TryMatch(access, path, out var root, out var final, out var problem))
+        if (!TryMatch(access, shown, out var root, out var final, out var problem))
         {
             if (problem is not null) return BridgeResult.Fail(problem.Detail.Length > 0 ? problem.Detail : "outside");
             return BridgeResult.Fail("missing");
@@ -168,24 +172,17 @@ public static class FolderBridgeGate
     private static bool Contained(BridgeFolder folder, string path, out string resolved)
     {
         resolved = path;
-        if (folder.Network || IsNetwork(folder.CanonicalRoot))
-        {
-            if (!IsUnder(Normalize(path), Normalize(folder.CanonicalRoot))) return false;
-            resolved = Normalize(path);
-            return true;
-        }
-
         string full;
         try { full = Path.GetFullPath(path); }
         catch { return false; }
         var final = FinalOf(full) ?? full;
         resolved = final;
-        return IsUnder(final, RootFinal(folder)) || IsUnder(full, RootFinal(folder));
+        var root = RootFinal(folder);
+        return IsUnder(final, root) || IsUnder(full, root);
     }
 
     private static string RootFinal(BridgeFolder folder)
     {
-        if (folder.Network || IsNetwork(folder.CanonicalRoot)) return Normalize(folder.CanonicalRoot);
         try
         {
             var full = Path.GetFullPath(folder.CanonicalRoot);
@@ -229,8 +226,35 @@ public static class FolderBridgeGate
         catch { return null; }
     }
 
-    private static bool IsNetwork(string path) =>
-        path.StartsWith(@"\\", StringComparison.Ordinal) || path.StartsWith("//", StringComparison.Ordinal);
+    /// <summary>
+    /// The path the person is shown. An extended local path becomes a drive path. An extended UNC path becomes a normal share path.
+    /// A device path that is neither is not a folder.
+    /// </summary>
+    private static string? Present(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return path;
+        var p = path.Replace('/', '\\');
+        const string unc = @"\\?\UNC\";
+        if (p.StartsWith(unc, StringComparison.OrdinalIgnoreCase))
+            p = @"\\" + p[unc.Length..];
+        else if (p.StartsWith(@"\\?\", StringComparison.Ordinal) || p.StartsWith(@"\\.\", StringComparison.Ordinal))
+        {
+            var rest = p[4..];
+            if (rest.Length >= 2 && char.IsLetter(rest[0]) && rest[1] == ':') p = rest;
+            else return null;
+        }
+        if (HasAds(p)) return null;
+        try { return Path.GetFullPath(p); }
+        catch { return null; }
+    }
+
+    private static bool IsNetwork(string path)
+    {
+        var p = path.Replace('/', '\\');
+        if (p.StartsWith(@"\\?\", StringComparison.Ordinal) || p.StartsWith(@"\\.\", StringComparison.Ordinal))
+            return false;
+        return p.StartsWith(@"\\", StringComparison.Ordinal);
+    }
 
     private static string Normalize(string path) => path.Replace('/', '\\').TrimEnd('\\');
 

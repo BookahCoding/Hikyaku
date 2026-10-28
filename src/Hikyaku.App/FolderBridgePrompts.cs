@@ -8,12 +8,15 @@ namespace Hikyaku.App;
 /// <summary>Asks on this PC while the agent waits. Simple and Advanced both ask; closing the dialog answers no.</summary>
 public sealed class FolderBridgePrompts(MainViewModel vm) : IFolderBridgePrompts
 {
+    internal static string ChooseFolderTitle(string askedPath) =>
+        "Share a folder with Hermes: " + askedPath;
+
     public Task<string?> ChooseFolderAsync(string askedPath, CancellationToken ct)
     {
         if (vm.BridgeChooseFolder is { } pick) return Task.FromResult(pick(askedPath));
         return OnUi(() =>
         {
-            var dlg = new OpenFolderDialog { Title = "Share a folder with Hermes" };
+            var dlg = new OpenFolderDialog { Title = ChooseFolderTitle(askedPath) };
             var start = Directory.Exists(askedPath) ? askedPath : Path.GetDirectoryName(askedPath);
             if (!string.IsNullOrEmpty(start) && Directory.Exists(start)) dlg.InitialDirectory = start;
             return dlg.ShowDialog() == true ? dlg.FolderName : null;

@@ -36,9 +36,9 @@ def reset():
 def handle_tool(params, profile=None):
     params = params or {}
     op = params.get("op")
-    if op not in _OPS:
+    if op not in _OPS or not profile:
         return json.dumps({"ok": False, "error": "invalid"})
-    item = _Item(profile or "default", op, params.get("path") or "", params.get("text"), params.get("data"))
+    item = _Item(profile, op, params.get("path") or "", params.get("text"), params.get("data"))
     with _lock:
         item.lease = time.monotonic() + LEASE_S
         _queue.append(item)

@@ -103,6 +103,21 @@ class BridgeQueueTests(unittest.TestCase):
             remove.assert_not_called()
             self.assertIn("ok", result["v"])
 
+    def test_a_missing_profile_is_rejected_and_not_queued(self):
+        for profile in (None, ""):
+            result = {}
+
+            def run(profile=profile):
+                result["v"] = json.loads(bridge.handle_tool({"op": "read", "path": "a"}, profile=profile))
+
+            thread = threading.Thread(target=run)
+            thread.start()
+            time.sleep(0.05)
+            pending = json.loads(bridge.handle_command("pending", platform="desktop"))
+            self.assertEqual(pending, {"ok": True, "pending": False})
+            thread.join(2)
+            self.assertEqual(result.get("v"), {"ok": False, "error": "invalid"})
+
     def test_a_shell_op_is_invalid_and_queues_nothing(self):
         self.assertEqual(json.loads(bridge.handle_tool({"op": "shell", "path": "a"})),
                          {"ok": False, "error": "invalid"})

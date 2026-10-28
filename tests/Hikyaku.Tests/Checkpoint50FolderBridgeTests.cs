@@ -170,6 +170,31 @@ public class Checkpoint50FolderBridgeTests
     }
 
     [Fact]
+    public void A_link_inside_a_network_root_is_refused_when_it_leaves()
+    {
+        using var dir = new TempTree();
+        var outside = Path.Combine(dir.Parent, "outside");
+        Directory.CreateDirectory(outside);
+        var secret = Path.Combine(outside, "note.txt");
+        File.WriteAllText(secret, "note-body");
+        var link = Path.Combine(dir.Root, "link");
+        if (!TryLink(link, outside))
+        {
+            _out.WriteLine("skipped network link test: this process could not create a junction or symlink");
+            return;
+        }
+
+        var access = Access(dir.Root, network: true);
+        var read = FolderBridgeGate.Apply(access, "read", Path.Combine(link, "note.txt"), null, false);
+        var write = FolderBridgeGate.Apply(access, "write", Path.Combine(link, "new.txt"), [1], false);
+        Assert.Equal("outside", read.Error);
+        Assert.Equal("outside", write.Error);
+        Assert.Equal("", read.Text);
+        Assert.Equal("note-body", File.ReadAllText(secret));
+        Assert.False(File.Exists(Path.Combine(outside, "new.txt")));
+    }
+
+    [Fact]
     public void A_path_outside_asks_for_a_folder_or_a_network_path_and_a_missing_root_fails()
     {
         using var dir = new TempTree();
@@ -184,6 +209,76 @@ public class Checkpoint50FolderBridgeTests
         var ads = Path.Combine(dir.Root, "file.txt:stream");
         Assert.Equal("invalid", FolderBridgeGate.Apply(access, "write", ads, [1], false).Error);
         Assert.False(File.Exists(Path.Combine(dir.Root, "file.txt")));
+    }
+
+    [Fact]
+    public void An_extended_local_path_asks_for_a_folder_not_a_share()
+    {
+        using var dir = new TempTree();
+        var access = Access(dir.Root);
+        foreach (var asked in new[] { @"\\?\C:\Work\notes.txt", @"\\.\C:\Work\notes.txt" })
+        {
+            var decision = FolderBridgeGate.Decide(access, "read", asked);
+            Assert.Equal(BridgeAsk.ChooseFolder, decision.Ask);
+            Assert.Equal(@"C:\Work\notes.txt", decision.Path, ignoreCase: true);
+        }
+
+        Assert.Equal("invalid", FolderBridgeGate.Decide(access, "read", @"\\?\Volume{x}\notes.txt").Detail);
+    }
+
+    [Fact]
+    public void An_extended_path_inside_an_allowed_folder_is_read_and_one_outside_is_not()
+    {
+        using var dir = new TempTree();
+        var file = Path.Combine(dir.Root, "note.txt");
+        File.WriteAllText(file, "hello");
+        var outside = Path.Combine(dir.Parent, "outside.txt");
+        File.WriteAllText(outside, "nope");
+        var access = Access(dir.Root);
+
+        var read = FolderBridgeGate.Apply(access, "read", @"\\?\" + file, null, false);
+        Assert.Equal("hello", read.Text);
+
+        var leaked = FolderBridgeGate.Apply(access, "read", @"\\?\" + outside, null, false);
+        Assert.NotEqual("nope", leaked.Text);
+        Assert.False(leaked.Ok);
+    }
+
+    [Fact]
+    public async Task Allowing_a_nested_network_file_remembers_its_directory_only()
+    {
+        var store = new FolderBridgeStore(new BridgeMemory());
+        var peer = ScriptPeer.One("read", @"\\server\share\private\a.txt", "a");
+        await new FolderBridgeLoop(() => peer, store, () => Key("a"), new FakePrompts { Network = true })
+            .TickAsync(CancellationToken.None);
+        var folders = (await store.GetAsync(Key("a"))).Folders;
+        Assert.Contains(folders, f => f.Network && string.Equals(f.CanonicalRoot, @"\\server\share\private", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(folders, f => string.Equals(f.CanonicalRoot, @"\\server\share", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task Cancelling_an_extended_drive_path_stores_nothing()
+    {
+        var store = new FolderBridgeStore(new BridgeMemory());
+        var prompts = new FakePrompts { Network = true };
+        var peer = ScriptPeer.One("read", @"\\?\C:\Work\notes.txt", "a");
+        await new FolderBridgeLoop(() => peer, store, () => Key("a"), prompts).TickAsync(CancellationToken.None);
+        Assert.Empty((await store.GetAsync(Key("a"))).Folders);
+        Assert.Contains(prompts.Calls, c => c.StartsWith("folder:", StringComparison.Ordinal));
+        Assert.DoesNotContain(prompts.Calls, c => c.StartsWith("network:", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Allowing_an_extended_unc_path_remembers_that_directory()
+    {
+        var store = new FolderBridgeStore(new BridgeMemory());
+        var prompts = new FakePrompts { Network = true };
+        var peer = ScriptPeer.One("read", @"\\?\UNC\server\share\private\a.txt", "a");
+        await new FolderBridgeLoop(() => peer, store, () => Key("a"), prompts).TickAsync(CancellationToken.None);
+        var folders = (await store.GetAsync(Key("a"))).Folders;
+        Assert.Contains(folders, f => f.Network && string.Equals(f.CanonicalRoot, @"\\server\share\private", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(prompts.Calls, c => c.Contains(@"\\server\share\private\a.txt", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(prompts.Calls, c => c.Contains(@"\\?\UNC", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -334,6 +429,31 @@ public class Checkpoint50FolderBridgeTests
             .TickAsync(CancellationToken.None);
         Assert.False(File.Exists(file));
         Assert.Empty(peer.Answers);
+    }
+
+    [Fact]
+    public async Task A_profile_on_this_gateway_uses_its_own_folder_while_another_is_on_screen()
+    {
+        using var dir = new TempTree();
+        var file = Path.Combine(dir.Root, "note.txt");
+        File.WriteAllText(file, "from-phone");
+        var store = new FolderBridgeStore(new BridgeMemory());
+        await store.AddFolderAsync(Key("phone"), dir.Root, false);
+        var prompts = new FakePrompts();
+        var peer = ScriptPeer.One("read", file, "phone");
+        var loop = new FolderBridgeLoop(() => peer, store, () => Key("a"), prompts, id => id is "a" or "phone");
+        await loop.TickAsync(CancellationToken.None);
+        Assert.Contains("from-phone", peer.Answers.Single());
+        Assert.Empty(prompts.Calls);
+
+        var picked = Path.Combine(dir.Parent, "picked");
+        Directory.CreateDirectory(picked);
+        prompts.Folder = picked;
+        var ask = ScriptPeer.One("read", Path.Combine(dir.Parent, "outside.txt"), "phone");
+        await new FolderBridgeLoop(() => ask, store, () => Key("a"), prompts, id => id is "a" or "phone")
+            .TickAsync(CancellationToken.None);
+        Assert.Contains((await store.GetAsync(Key("phone"))).Folders, f => f.CanonicalRoot == picked);
+        Assert.Empty((await store.GetAsync(Key("a"))).Folders);
     }
 
     [Fact]

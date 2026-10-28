@@ -19,47 +19,54 @@ public sealed class FolderBridgeLoop(
     Func<IJsonRpcPeer?> rpc,
     FolderBridgeStore store,
     Func<ProfileKey?> profile,
-    IFolderBridgePrompts prompts)
+    IFolderBridgePrompts prompts,
+    Func<string, bool>? profileOnGateway = null)
 {
     private const string Command = "hikyaku-files";
 
     public bool PluginMissing { get; private set; }
 
-    public async Task TickAsync(CancellationToken ct)
+    private bool _storedThisTick;
+
+    /// <summary>One poll. Returns true when this tick remembered a folder or a key file.</summary>
+    public async Task<bool> TickAsync(CancellationToken ct)
     {
-        if (rpc() is not { } peer) return;
-        if (profile() is not { } key) return;
+        _storedThisTick = false;
+        if (rpc() is not { } peer) return false;
+        if (profile() is not { } key) return false;
 
         var pending = await CommandAsync(peer, "pending", ct).ConfigureAwait(false);
-        if (PluginMissing || pending is null) return;
-        if (pending["ok"]?.GetValue<bool>() != true || pending["pending"]?.GetValue<bool>() != true) return;
+        if (PluginMissing || pending is null) return false;
+        if (pending["ok"]?.GetValue<bool>() != true || pending["pending"]?.GetValue<bool>() != true) return false;
 
         var id = pending["id"]?.GetValue<string>();
-        if (string.IsNullOrEmpty(id)) return;
+        if (string.IsNullOrEmpty(id)) return false;
         var op = pending["op"]?.GetValue<string>() ?? "";
         var path = pending["path"]?.GetValue<string>() ?? "";
         var askedProfile = pending["profile"]?.GetValue<string>() ?? "";
-        if (!string.Equals(askedProfile, key.ProfileId, StringComparison.Ordinal))
+        if (string.IsNullOrEmpty(askedProfile) || !OnThisGateway(key, askedProfile))
         {
             await AnswerAsync(peer, id, Fail("invalid"), ct).ConfigureAwait(false);
-            return;
+            return false;
         }
 
         if (!TryWriteBytes(pending, op, out var write, out var writeError))
         {
             await AnswerAsync(peer, id, Fail(writeError), ct).ConfigureAwait(false);
-            return;
+            return false;
         }
 
-        var access = await store.GetAsync(key, ct).ConfigureAwait(false);
-        var ready = await ResolveAsync(peer, id, key, access, op, path, ct).ConfigureAwait(false);
-        if (ready is null) return;
+        var asked = new ProfileKey(key.GatewayId, askedProfile);
+        var access = await store.GetAsync(asked, ct).ConfigureAwait(false);
+        var ready = await ResolveAsync(peer, id, asked, access, op, path, ct).ConfigureAwait(false);
+        if (ready is null) return _storedThisTick;
 
         var hold = await CommandAsync(peer, "hold " + id, ct).ConfigureAwait(false);
-        if (PluginMissing || hold is null || hold["ok"]?.GetValue<bool>() != true) return;
+        if (PluginMissing || hold is null || hold["ok"]?.GetValue<bool>() != true) return _storedThisTick;
 
         var result = FolderBridgeGate.Apply(ready.Value.Access, op, path, write, ready.Value.DeleteYes);
         await AnswerAsync(peer, id, ResultJson(result), ct).ConfigureAwait(false);
+        return _storedThisTick;
     }
 
     private async Task<Ready?> ResolveAsync(
@@ -82,6 +89,7 @@ public sealed class FolderBridgeLoop(
                         return null;
                     }
                     await store.AddFolderAsync(key, chosen, false, ct).ConfigureAwait(false);
+                    _storedThisTick = true;
                     access = await store.GetAsync(key, ct).ConfigureAwait(false);
                     decision = FolderBridgeGate.Decide(access, op, path);
                     if (decision.Ask == BridgeAsk.ChooseFolder)
@@ -93,13 +101,14 @@ public sealed class FolderBridgeLoop(
                 }
                 case BridgeAsk.AllowNetwork:
                 {
-                    var allow = await prompts.AllowNetworkAsync(path, ct).ConfigureAwait(false);
+                    var allow = await prompts.AllowNetworkAsync(decision.Path, ct).ConfigureAwait(false);
                     if (!allow)
                     {
                         await AnswerAsync(peer, id, Fail("cancelled"), ct).ConfigureAwait(false);
                         return null;
                     }
-                    await store.AddFolderAsync(key, ShareRoot(path), true, ct).ConfigureAwait(false);
+                    await store.AddFolderAsync(key, RememberedDirectory(decision.Path, op), true, ct).ConfigureAwait(false);
+                    _storedThisTick = true;
                     access = await store.GetAsync(key, ct).ConfigureAwait(false);
                     decision = FolderBridgeGate.Decide(access, op, path);
                     if (decision.Ask == BridgeAsk.AllowNetwork)
@@ -118,6 +127,7 @@ public sealed class FolderBridgeLoop(
                         return null;
                     }
                     await store.AllowKeyFileAsync(key, decision.Path, ct).ConfigureAwait(false);
+                    _storedThisTick = true;
                     access = await store.GetAsync(key, ct).ConfigureAwait(false);
                     decision = FolderBridgeGate.Decide(access, op, path);
                     break;
@@ -138,6 +148,11 @@ public sealed class FolderBridgeLoop(
         await AnswerAsync(peer, id, Fail("invalid"), ct).ConfigureAwait(false);
         return null;
     }
+
+    private bool OnThisGateway(ProfileKey sidebar, string askedProfile) =>
+        profileOnGateway is { } known
+            ? known(askedProfile)
+            : string.Equals(askedProfile, sidebar.ProfileId, StringComparison.Ordinal);
 
     private readonly record struct Ready(BridgeProfile Access, bool DeleteYes);
 
@@ -232,13 +247,20 @@ public sealed class FolderBridgeLoop(
         return body.ToJsonString();
     }
 
-    /// <summary>The share root is the server and the share, which is what Allow remembers.</summary>
-    private static string ShareRoot(string path)
+    /// <summary>The folder Allow remembers: the directory of the path that was shown, not the whole share.</summary>
+    private static string RememberedDirectory(string shown, string op)
     {
-        var normalized = path.Replace('/', '\\');
-        var parts = normalized.TrimStart('\\').Split('\\', StringSplitOptions.RemoveEmptyEntries);
-        if (normalized.StartsWith(@"\\", StringComparison.Ordinal) && parts.Length >= 2)
-            return @"\\" + parts[0] + @"\" + parts[1];
-        return normalized.TrimEnd('\\');
+        var full = shown;
+        try { full = Path.GetFullPath(shown); } catch { /* the shown path is already the one to keep */ }
+        string dir;
+        if (op is "list" or "delete_folder" && !File.Exists(full))
+            dir = full;
+        else
+        {
+            var parent = Path.GetDirectoryName(full);
+            dir = string.IsNullOrEmpty(parent) ? full : parent;
+        }
+        if (dir.Length == 3 && dir[1] == ':' && dir[2] == '\\') return dir;
+        return dir.TrimEnd('\\');
     }
 }

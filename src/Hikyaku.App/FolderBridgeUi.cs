@@ -44,7 +44,7 @@ public sealed partial class MainViewModel
     public void AttachFolderBridge(FolderBridgeStore store)
     {
         _bridgeStore = store;
-        _bridgeLoop = new FolderBridgeLoop(_rpc, store, ActiveProfileKey, new FolderBridgePrompts(this));
+        _bridgeLoop = new FolderBridgeLoop(_rpc, store, ActiveProfileKey, new FolderBridgePrompts(this), ProfileOnThisGateway);
         RemoveBridgeShareCommand = new RelayCommand(p => _ = RemoveBridgeShareAsync(p));
         Raise(nameof(RemoveBridgeShareCommand));
         _ = RefreshBridgeSharesAsync();
@@ -66,8 +66,21 @@ public sealed partial class MainViewModel
         try { cts?.Cancel(); } catch (ObjectDisposedException) { /* already stopped */ }
     }
 
-    public Task TickFolderBridgeAsync(CancellationToken ct = default) =>
-        _bridgeLoop?.TickAsync(ct) ?? Task.CompletedTask;
+    public async Task TickFolderBridgeAsync(CancellationToken ct = default)
+    {
+        if (_bridgeLoop is null) return;
+        if (await _bridgeLoop.TickAsync(ct).ConfigureAwait(true))
+            await RefreshBridgeSharesAsync().ConfigureAwait(true);
+    }
+
+    private bool ProfileOnThisGateway(string profileId)
+    {
+        var gateway = ActiveProfileKey()?.GatewayId;
+        if (gateway is null || string.IsNullOrEmpty(profileId)) return false;
+        return _selection.Selected.Any(k =>
+            string.Equals(k.GatewayId, gateway, StringComparison.Ordinal)
+            && string.Equals(k.ProfileId, profileId, StringComparison.Ordinal));
+    }
 
     public async Task SetFolderKeyFilesOpenAsync(bool open)
     {
@@ -112,7 +125,7 @@ public sealed partial class MainViewModel
         {
             try
             {
-                if (_bridgeLoop is { } loop) await loop.TickAsync(ct).ConfigureAwait(true);
+                await TickFolderBridgeAsync(ct).ConfigureAwait(true);
                 RaiseBridgeSurfaces();
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested) { break; }

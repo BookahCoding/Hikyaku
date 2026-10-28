@@ -100,6 +100,7 @@ public sealed partial class MainViewModel
         if (ActiveProfileKey() is { } p) _sessions()?.SetActiveProfile(p);
         _ = RefreshSessionsAsync();
         _ = RefreshApprovalsRiskAsync();
+        _ = RefreshBridgeSharesAsync();
         // The open page shows the newly chosen profile's data (each page drops the old profile's rows first).
         switch (Nav)
         {

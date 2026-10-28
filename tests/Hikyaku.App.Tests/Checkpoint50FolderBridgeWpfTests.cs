@@ -27,11 +27,13 @@ public class Checkpoint50FolderBridgeWpfTests
         public string Op { get; set; } = "read";
         public string Path { get; set; } = "";
         public string Profile { get; set; } = "default";
+        public List<string> Answers { get; } = [];
 
         public Task<JsonNode?> RequestAsync(string method, JsonObject? parameters = null, TimeSpan? timeout = null, CancellationToken ct = default)
         {
             var arg = parameters?["arg"]?.GetValue<string>() ?? "";
             var verb = arg.Split(' ', 2)[0];
+            if (verb == "answer") Answers.Add(arg);
             var body = verb == "pending"
                 ? new JsonObject
                 {
@@ -95,6 +97,14 @@ public class Checkpoint50FolderBridgeWpfTests
         });
         Assert.True(PumpUntil(() => done.Task.IsCompleted));
         if (done.Task.IsFaulted) throw done.Task.Exception!;
+    }
+
+    [Fact]
+    public void The_folder_ask_names_the_path_the_agent_wanted()
+    {
+        var title = FolderBridgePrompts.ChooseFolderTitle(@"D:\notes\secret.txt");
+        Assert.Contains("Share a folder with Hermes", title);
+        Assert.Contains(@"D:\notes\secret.txt", title);
     }
 
     [Fact]
@@ -187,6 +197,78 @@ public class Checkpoint50FolderBridgeWpfTests
             var left = store.GetAsync(key).GetAwaiter().GetResult().Folders;
             Assert.Equal(second, left[0].CanonicalRoot);
             Assert.DoesNotContain(left, f => f.CanonicalRoot == first);
+        });
+    }
+
+    [Fact]
+    public void A_ticked_profile_that_is_not_on_screen_can_read_its_folder()
+    {
+        RunSta(() =>
+        {
+            using var dir = new TempDir();
+            var file = Path.Combine(dir.Root, "note.txt");
+            File.WriteAllText(file, "from-phone");
+            var selection = new ProfileSelectionService(new Mem());
+            selection.SetSelectedAsync([new ProfileKey("gw", "default"), new ProfileKey("gw", "phone")]).GetAwaiter().GetResult();
+            var peer = new BridgePeer { Op = "read", Path = file, Profile = "phone" };
+            var vm = new MainViewModel(selection, new NotificationGate(selection), () => new DemoTransport(), () => "t",
+                () => null, () => null, () => null, () => null, () => null, () => null, () => null, () => null,
+                rpc: () => peer);
+            vm.ApplyExperience(false);
+            var store = new FolderBridgeStore(new Mem());
+            store.AddFolderAsync(new ProfileKey("gw", "phone"), dir.Root, false).GetAwaiter().GetResult();
+            vm.AttachFolderBridge(store);
+            Tick(vm);
+            Assert.Contains(peer.Answers, a => a.Contains("from-phone"));
+        });
+    }
+
+    [Fact]
+    public void A_folder_just_allowed_shows_up_without_another_refresh()
+    {
+        RunSta(() =>
+        {
+            using var dir = new TempDir();
+            var (vm, _, peer) = Make(false);
+            vm.BridgeChooseFolder = _ => dir.Root;
+            peer.Op = "read";
+            peer.Path = Path.Combine(dir.Root, "note.txt");
+            Tick(vm);
+            Assert.Contains(vm.BridgeShares, row => row.Path == dir.Root);
+            Assert.Contains("A folder on this computer is shared with Hermes.", vm.RiskNotice);
+        });
+    }
+
+    [Fact]
+    public void Switching_profiles_shows_that_profiles_shares_and_key_switch()
+    {
+        RunSta(() =>
+        {
+            var selection = new ProfileSelectionService(new Mem());
+            var home = new ProfileKey("gw", "default");
+            var work = new ProfileKey("gw", "work");
+            selection.SetSelectedAsync([home, work]).GetAwaiter().GetResult();
+            var peer = new BridgePeer();
+            var vm = new MainViewModel(selection, new NotificationGate(selection), () => new DemoTransport(), () => "t",
+                () => null, () => null, () => null, () => null, () => null, () => null, () => null, () => null,
+                rpc: () => peer);
+            vm.ApplyExperience(true);
+            var store = new FolderBridgeStore(new Mem());
+            var homeFolder = Path.Combine(Path.GetTempPath(), "hikyaku-bridge-home-" + Guid.NewGuid().ToString("N"));
+            var workFolder = Path.Combine(Path.GetTempPath(), "hikyaku-bridge-work-" + Guid.NewGuid().ToString("N"));
+            store.AddFolderAsync(home, homeFolder, false).GetAwaiter().GetResult();
+            store.AddFolderAsync(work, workFolder, false).GetAwaiter().GetResult();
+            store.SetKeyFilesOpenAsync(work, true).GetAwaiter().GetResult();
+            vm.AttachFolderBridge(store);
+            Assert.True(PumpUntil(() => vm.BridgeShares.Any(row => row.Path == homeFolder) && !vm.FolderKeyFilesOpen));
+
+            vm.SwitchProfile(work);
+            Assert.True(PumpUntil(() => vm.BridgeShares.Any(row => row.Path == workFolder) && vm.FolderKeyFilesOpen));
+            Assert.DoesNotContain(vm.BridgeShares, row => row.Path == homeFolder);
+
+            vm.SwitchProfile(home);
+            Assert.True(PumpUntil(() => vm.BridgeShares.Any(row => row.Path == homeFolder) && !vm.FolderKeyFilesOpen));
+            Assert.DoesNotContain(vm.BridgeShares, row => row.Path == workFolder);
         });
     }
 
