@@ -31,7 +31,7 @@ public class Checkpoint47SpeechStreamTests
     {
         Assert.Equal("wss://hermes.example/hermes/api/audio/speak-stream?profile=my%20bot",
             SpeechStreamClient.SocketUri(new Uri("https://hermes.example/hermes/"), "my bot").AbsoluteUri);
-        Assert.Equal("ws://10.0.0.5:9119/api/audio/speak-stream", SpeechStreamClient.SocketUri(new Uri("http://10.0.0.5:9119"), null).AbsoluteUri);
+        Assert.Equal("ws://gateway.example:9119/api/audio/speak-stream", SpeechStreamClient.SocketUri(new Uri("http://gateway.example:9119"), null).AbsoluteUri);
     }
 
     /// <summary>A connected client/server WebSocket pair over loopback TCP, without the HTTP upgrade.</summary>

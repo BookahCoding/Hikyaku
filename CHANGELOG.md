@@ -5,9 +5,15 @@ are `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
-## 0.5.2 — Settings redesigned
+## 0.5.2 — Settings redesigned, two fixes
 
 Plain-text release notes: [docs/release-notes/v0.5.2.txt](docs/release-notes/v0.5.2.txt).
+
+- Fixed: after saving Settings (for example switching Simple to Advanced) the open chat was no longer selected, so Send,
+  + and the microphone were greyed out and New chat did not help. Refreshing the chat list no longer drops the selection.
+- Fixed: after a restart or an update the browser sign-in could be lost and had to be done again. The app's connections
+  renewed the shared sign-in at the same moment with the same one-use refresh token; renewal is now one at a time, and a
+  refused renewal no longer forgets a sign-in that another renewal had just saved.
 
 - Settings laid out like Claude Desktop's: sections on the left (General, Appearance, Account, and in Advanced Profiles,
   Safety, Connection, Updates), one page each, in plain words; Save and Cancel always in reach. Simple view lists only the

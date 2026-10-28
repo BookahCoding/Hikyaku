@@ -665,6 +665,7 @@ public sealed partial class MainViewModel : Observable
         set
         {
             if (_selected == value) return;
+            if (value is null && _refillingList) return;        // the list emptied for a refill, not a choice to close the chat
             _ = PersistDraftAsync();
             ExitEditMode(restoreDraft: false);
             SetRewindNotice("");
@@ -734,10 +735,20 @@ public sealed partial class MainViewModel : Observable
         RaiseStatus();
         SyncTerminalProfileBinding();
         var visible = _selection.Filter(_all, c => c.Profile);
-        Conversations.Clear();
-        foreach (var c in visible) Conversations.Add(c);
+        // The sidebar list's selection is bound two-way to SelectedConversation: emptying the list writes "no chat" back. That
+        // must not deselect the open chat (0.5.2 live finding: after Settings was saved, Send and New chat stopped working).
+        _refillingList = true;
+        try
+        {
+            Conversations.Clear();
+            foreach (var c in visible) Conversations.Add(c);
+        }
+        finally { _refillingList = false; }
         if (_selected is not null && !visible.Contains(_selected)) SelectedConversation = null;
+        else if (_selected is not null) Raise(nameof(SelectedConversation));     // the refilled list shows it selected again
     }
+
+    private bool _refillingList;
 
     public void NewChat()
     {
