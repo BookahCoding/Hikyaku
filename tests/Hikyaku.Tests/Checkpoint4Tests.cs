@@ -218,6 +218,15 @@ public class AttachmentQueueTests
     private static readonly ProfileKey B = new("g1", "other");
 
     [Fact]
+    public void Remove_label_names_the_file_instead_of_the_times_mark()
+    {
+        var file = new OutgoingAttachment("1", "notes.txt", "text/plain", "hi"u8.ToArray());
+        Assert.Equal("Remove notes.txt", file.RemoveLabel);
+        var nested = new OutgoingAttachment("2", "dir/quarterly report.pdf", "application/pdf", new byte[] { 1 });
+        Assert.Equal("Remove quarterly report.pdf", nested.RemoveLabel);
+    }
+
+    [Fact]
     public async Task Queue_RejectsOtherProfile_AndOversize()
     {
         var prefs = new MemoryStore();

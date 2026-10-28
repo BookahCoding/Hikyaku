@@ -27,6 +27,8 @@ public sealed class OutgoingAttachment
     public string Name { get; }
     public string MimeType { get; }
     public byte[] Bytes { get; }
+    /// <summary>Spoken name of the control that drops this file. The visible mark is only "×", which a screen reader reads as "times".</summary>
+    public string RemoveLabel => "Remove " + Name;
 
     public AttachmentKind Kind =>
         MimeType.StartsWith("image/", StringComparison.OrdinalIgnoreCase) ? AttachmentKind.Image

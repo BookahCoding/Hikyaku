@@ -5,6 +5,8 @@ are `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- The × on a file you are about to send is named for that file (for example "Remove notes.txt") for screen readers, with a tooltip that the file has not been sent.
+
 ## 0.5.0 — first public test release
 
 First public release of the Windows client for a Hermes Agent gateway, numbered 0.5 because it is still being tested
