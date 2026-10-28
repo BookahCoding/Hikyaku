@@ -2,7 +2,8 @@ Hikyaku 0.7.0 - the Inbox shows what each job found
 
 - Each Inbox result now shows what the run found: the agent's answer, or the script's output, instead of the "# Cron Job" header or the job's own prompt.
 - Click a result to read it whole in place. Agent results have "Ask about this" to follow up in a chat.
-- Failed runs are marked Failed with the reason Hermes gave. Runs with nothing to report say "Nothing new".
+- Failed runs are marked Failed with the reason Hermes gave, including a monitor whose source failed and a job blocked by its configuration. Runs with nothing to report say "Nothing new".
+- The hikyaku-cron command answers only Hikyaku. A chat app connected to the gateway cannot use it to read a job's output.
 - Unread results have a dot until you open them, folders show how many are new, and "Mark all as read" clears them. This is remembered on your PC.
 - Optional: install the small hikyaku-cron plugin on your Hermes gateway to see the whole output of script-only jobs (without it they show a short preview). On the gateway machine run: hermes plugins install BookahCoding/Hikyaku/hermes-plugin/hikyaku-cron --enable
 - Also: a Copy button on each message, unsent drafts kept when two saves overlap, smoother reasoning while a reply thinks, a tighter recent-chat list, and the remove-file button named for screen readers.

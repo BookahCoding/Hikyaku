@@ -758,7 +758,7 @@
                    AutomationProperties.Name="Inbox results" MouseLeftButtonUp="JobResult_Click">
             <ListBox.ItemTemplate>
               <DataTemplate>
-                <DockPanel Margin="2,4">
+                <DockPanel Margin="2,4" Loaded="JobResultRow_Loaded" DataContextChanged="JobResultRow_ContextChanged">
                   <Button DockPanel.Dock="Right" Style="{StaticResource MiniIconButton}" Command="{Binding HideCommand}" VerticalAlignment="Top"
                           ToolTip="Hide this job from the Inbox on this PC. The job keeps running; Show them brings it back."
                           AutomationProperties.Name="Hide this job">

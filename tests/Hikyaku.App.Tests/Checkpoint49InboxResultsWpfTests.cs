@@ -55,6 +55,8 @@ public class Checkpoint49InboxResultsWpfTests
         public int InFlight, MaxInFlight, Calls;
         public TaskCompletionSource Gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public bool Hold;
+        public bool NoAnswerYet;
+        public string Assistant = "You have 2 important mails.\n\nOne from the bank.";
 
         public async Task<IReadOnlyList<SessionMessage>> Load(string id, string? profile, int limit, CancellationToken ct)
         {
@@ -64,7 +66,9 @@ public class Checkpoint49InboxResultsWpfTests
             {
                 if (Hold) await Gate.Task;
                 else await Task.Yield();
-                return [new SessionMessage("1", "user", "/bookahmail-mail"), new SessionMessage("2", "assistant", "You have 2 important mails.\n\nOne from the bank.")];
+                return NoAnswerYet
+                    ? [new SessionMessage("1", "user", "/bookahmail-mail")]
+                    : [new SessionMessage("1", "user", "/bookahmail-mail"), new SessionMessage("2", "assistant", Assistant)];
             }
             finally { Interlocked.Decrement(ref InFlight); }
         }
@@ -182,7 +186,55 @@ public class Checkpoint49InboxResultsWpfTests
             Assert.Equal(expected, answers.Calls);
             Assert.True(answers.Calls < vm.JobResults.Count - 10);
             Assert.InRange(answers.MaxInFlight, 1, 3);
+            // A row past the first screen is fetched when it is realized, not left on "Loading…" until a click.
+            var later = vm.JobResults.Skip(20).First(r => !r.Result.IsScriptOutput);
+            Assert.Equal("Loading…", later.Excerpt);
+            var before = answers.Calls;
+            vm.NoteJobResultRealized(later);
+            Assert.True(PumpUntil(() => later.Excerpt.StartsWith("You have 2 important mails.")), later.Excerpt);
+            Assert.True(answers.Calls > before);
         });
+    }
+
+    [Fact]
+    public void A_run_with_no_answer_yet_is_read_again_on_the_next_refresh()
+    {
+        RunSta(() =>
+        {
+            var (vm, answers, _) = Make();
+            answers.NoAnswerYet = true;
+            ShowAll(vm);
+            var agent = vm.JobResults.Single(r => r.Title == "important-mail");
+            Assert.True(PumpUntil(() => agent.Excerpt == "No answer yet"), agent.Excerpt);
+            answers.NoAnswerYet = false;
+            vm.RefreshJobInboxAsync().GetAwaiter().GetResult();
+            agent = vm.JobResults.Single(r => r.Title == "important-mail");
+            Assert.True(PumpUntil(() => agent.Excerpt.StartsWith("You have 2 important mails.")), agent.Excerpt);
+        });
+    }
+
+    [Fact]
+    public void A_script_preview_taken_while_disconnected_is_replaced_when_the_plugin_answers()
+    {
+        RunSta(() =>
+        {
+            var (vm, answers, reads) = Make();
+            IJsonRpcPeer? peer = null;
+            vm.AttachJobRunDetails(new JobRunDetails(answers.Load, () => peer), reads);
+            ShowAll(vm);
+            var script = vm.JobResults.Single(r => r.Title == "homelab-alerts");
+            Assert.True(PumpUntil(() => script.HasDetail && script.Excerpt == "disk 91% full on nas"), script.Excerpt);
+            peer = new PluginPeer("""{"ok":true,"text":"# Cron Job: homelab-alerts\n\n**Job ID:** script\n**Run Time:** now\n**Mode:** no_agent (script)\n\n---\n\nThe whole output is the disk report.\n","truncated":false}""");
+            vm.RefreshJobInboxAsync().GetAwaiter().GetResult();
+            script = vm.JobResults.Single(r => r.Title == "homelab-alerts");
+            Assert.True(PumpUntil(() => script.Excerpt.Contains("whole output")), script.Excerpt);
+        });
+    }
+
+    private sealed class PluginPeer(string output) : IJsonRpcPeer
+    {
+        public Task<JsonNode?> RequestAsync(string method, JsonObject? parameters = null, TimeSpan? timeout = null, CancellationToken ct = default) =>
+            Task.FromResult<JsonNode?>(new JsonObject { ["type"] = "plugin", ["output"] = output });
     }
 
     [Fact]
@@ -200,6 +252,23 @@ public class Checkpoint49InboxResultsWpfTests
             Assert.Contains("hermes plugins install BookahCoding/Hikyaku/hermes-plugin/hikyaku-cron", vm.JobInboxPluginHint);
             vm.ApplyExperience(false);
             Assert.Equal(Visibility.Collapsed, vm.JobInboxPluginHintVisibility);
+        });
+    }
+
+    [Fact]
+    public void A_new_connection_does_not_keep_the_previous_gateways_result()
+    {
+        RunSta(() =>
+        {
+            var (vm, answers, reads) = Make();
+            ShowAll(vm);
+            var script = vm.JobResults.Single(r => r.Title == "homelab-alerts");
+            Assert.True(PumpUntil(() => script.HasDetail && script.Excerpt == "disk 91% full on nas"), script.Excerpt);
+            vm.AttachJobRunDetails(new JobRunDetails(answers.Load, () => new PluginPeer(
+                """{"ok":true,"text":"# Cron Job: homelab-alerts\n\n**Job ID:** script\n**Run Time:** now\n**Mode:** no_agent (script)\n\n---\n\nThe whole output is the disk report.\n","truncated":false}""")), reads);
+            vm.RefreshJobInboxAsync().GetAwaiter().GetResult();
+            script = vm.JobResults.Single(r => r.Title == "homelab-alerts");
+            Assert.True(PumpUntil(() => script.Excerpt.Contains("whole output")), script.Excerpt);
         });
     }
 }

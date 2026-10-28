@@ -190,12 +190,7 @@ public partial class MainWindow : Window
         Activated += (_, _) => _appActive = true;
         Deactivated += (_, _) => _appActive = false;
         _vm.AttachJobInbox(_jobInboxPrefs);
-        // 0.7.0: what each run found (the run chat's last answer, or the hikyaku-cron plugin's output) and the read marks.
-        _vm.AttachJobRunDetails(new JobRunDetails(
-            async (id, profile, limit, ct) => _hermes?.Auth is { } auth
-                ? (await new SessionsApi(auth).MessagesAsync(id, profile, limit, 0, ct).ConfigureAwait(false)).Messages
-                : throw new InvalidOperationException("Not connected to the gateway."),
-            () => _hermes?.Client), _inboxReads);
+        BindJobRunDetails();
         _vm.ModelMenuRequested += () => ModelMenu_Click(ModelMenuButton, new RoutedEventArgs());
         _vm.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(MainViewModel.Nav)) FadeInPage(); };
         _vm.ActiveProfileChosen += id =>
@@ -353,6 +348,17 @@ public partial class MainWindow : Window
                 return def?.UiMeta is null ? Array.Empty<DesktopRoom>() : DesktopRooms.Parse(def.UiMeta);
             });
         _vm.RaiseIdentity();
+        BindJobRunDetails();
+    }
+
+    /// <summary>A fresh result fetcher for this connection, so one gateway's "plugin absent" is not remembered for the next.</summary>
+    private void BindJobRunDetails()
+    {
+        _vm.AttachJobRunDetails(new JobRunDetails(
+            async (id, profile, limit, ct) => _hermes?.Auth is { } auth
+                ? (await new SessionsApi(auth).MessagesAsync(id, profile, limit, 0, ct).ConfigureAwait(false)).Messages
+                : throw new InvalidOperationException("Not connected to the gateway."),
+            () => _hermes?.Client), _inboxReads);
     }
 
     private void DetachNeedsYou()
@@ -1077,6 +1083,15 @@ public partial class MainWindow : Window
     {
         if (ClickedRow<JobResultVM>(e) is { } row) row.OpenCommand.Execute(null);
         HighlightNav();
+    }
+
+    private void JobResultRow_Loaded(object sender, RoutedEventArgs e) => RealizeJobResult(sender);
+
+    private void JobResultRow_ContextChanged(object sender, DependencyPropertyChangedEventArgs e) => RealizeJobResult(sender);
+
+    private void RealizeJobResult(object sender)
+    {
+        if (sender is FrameworkElement { DataContext: JobResultVM row }) _vm.NoteJobResultRealized(row);
     }
 
     /// <summary>Used by synthetic UI acceptance for theme / width / sidebar evidence.</summary>

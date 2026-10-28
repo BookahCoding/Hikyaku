@@ -11,7 +11,7 @@ public sealed record RunDetail(RunText Result, bool FromPlugin);
 /// script-only run is an output document the sessions routes do not serve; the gateway's hikyaku-cron plugin
 /// (hermes-plugin/hikyaku-cron) returns it whole through <c>command.dispatch</c>, as the herald-push Inbox once did. Without
 /// the plugin (not a command, an unreadable answer, no answer in time) the gateway's short preview is used, and its absence
-/// is remembered so it is not asked again.
+/// is remembered for this connection so it is not asked again. A dropped connection is not absence.
 /// </summary>
 public sealed class JobRunDetails(
     Func<string, string?, int, CancellationToken, Task<IReadOnlyList<SessionMessage>>> messages,
@@ -31,7 +31,12 @@ public sealed class JobRunDetails(
         {
             var rows = await messages(result.Run.Id, result.Profile.Length > 0 ? result.Profile : null, 50, ct).ConfigureAwait(false);
             var answer = rows.LastOrDefault(m => m.Role == "assistant" && m.Content.Trim().Length > 0);
-            return answer is null ? null : new RunDetail(new RunText(RunStatus.Ok, answer.Content.Trim(), null), false);
+            if (answer is null) return null;
+            var content = answer.Content.Trim();
+            // Hermes does not deliver [SILENT] / NO_REPLY; the Inbox says "Nothing new" for the same answers.
+            return CronRunText.IsCronSilence(content)
+                ? new RunDetail(new RunText(RunStatus.Silent, "", null), false)
+                : new RunDetail(new RunText(RunStatus.Ok, content, null), false);
         }
         if (_plugin >= 0 && await FromPluginAsync(result, ct).ConfigureAwait(false) is { } whole)
             return new RunDetail(CronRunText.Parse(whole), true);
@@ -62,10 +67,13 @@ public sealed class JobRunDetails(
             _plugin = 1;
             return answer["ok"]?.GetValue<bool>() == true ? answer["text"]?.GetValue<string>() : null;
         }
-        catch (Exception ex) when (ex is RpcException or JsonException or TimeoutException or InvalidOperationException or FormatException
+        catch (Exception ex) when (ex is RpcTimeoutException or TimeoutException or JsonException or FormatException
+                                       || ex is RpcException rpc && rpc.Code == InboxApi.NotACommand
                                        || ex is OperationCanceledException && !ct.IsCancellationRequested)
         {
-            _plugin = -1;                                       // not a command, garbled, or no answer in time: treat as absent
+            // Absent only when the plugin is not installed, its answer cannot be read, or it does not answer in time.
+            // A dropped connection (ObjectDisposedException) or any other gateway error is not absence: the next try asks again.
+            _plugin = -1;
             return null;
         }
     }

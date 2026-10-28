@@ -36,7 +36,18 @@ def _answer(**fields):
     return json.dumps(fields)
 
 
-def handle(raw_args, resolve_dir=None):
+# The dashboard WebSocket (tui_gateway command.dispatch with no session) passes platform "desktop"
+# when HERMES_DESKTOP=1, otherwise "tui" (_resolve_session_platform). Messaging gateways pass their own
+# platform (telegram, discord, …) via invoke_plugin_command. Anything else is refused.
+_DASHBOARD_PLATFORMS = frozenset({"desktop", "tui"})
+
+
+def handle(raw_args, resolve_dir=None, *, platform=None, source=None):
+    # source is the dispatcher's session source (None from the dashboard, a SessionSource from a chat app).
+    # The allow decision is the platform string, which the caller cannot choose.
+    del source
+    if platform not in _DASHBOARD_PLATFORMS:
+        return _answer(ok=False, error="invalid")
     tokens = (raw_args or "").split()
     if len(tokens) != 4 or tokens[0] != "output":
         return _answer(ok=False, error="invalid")

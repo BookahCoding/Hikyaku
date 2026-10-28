@@ -13,7 +13,9 @@ docs/superpowers/specs/2026-10-28-inbox-results-design.md.
 - Each Inbox result shows what the run found: the agent's final answer, or the script's output without the run
   document's header, instead of the header or the job's own prompt. Click a result to read it whole in place; an agent
   result has "Ask about this" to follow up in a chat.
-- Failed runs (script failed, blocked) are marked Failed with Hermes' reason; runs with nothing to say read "Nothing new".
+- Failed runs (script failed, a monitor whose source failed, a job blocked by its configuration) are marked Failed with Hermes' reason. A run with nothing to say — silent, unchanged, a script gate that skipped the agent, or an answer of "[SILENT]" / "NO_REPLY" — reads "Nothing new".
+- A result that is still running is read again the next time the Inbox refreshes, and results further down the list load as they scroll into view.
+- The hikyaku-cron command answers only Hikyaku's dashboard connection. A chat app on the gateway (Telegram, Discord, and the rest) cannot use it to read a job's output.
 - Unread results have a dot and a bold name until opened; folders show how many are new; "Mark all as read". Kept per PC.
 - New, optional Hermes plugin `hikyaku-cron` (in this repository, `hermes-plugin/hikyaku-cron`): one read-only command that
   returns a script-only run's whole output; without it those rows show the dashboard's short preview. Install on the

@@ -1,6 +1,6 @@
 # 0.7.0 Inbox results — final review findings (to fix before release)
 
-Reviewer: fresh agent, read-only, range `af5758a..97a6ec9`. Not yet acted on. Fix Critical and Important test-first
+Reviewer: fresh agent, read-only, range `af5758a..97a6ec9`. Items 1–6 fixed locally (not pushed, not released). Items 7–13 left for the maintainer. Fix Critical and Important test-first
 (each test fails without the fix; prove with a mutation), run the gates, then ask the maintainer before push/release.
 
 ## Critical

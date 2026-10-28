@@ -22,8 +22,8 @@ class ReadOutputTests(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def run_cmd(self, args):
-        return json.loads(cron_output.handle(args, resolve_dir=self.resolve))
+    def run_cmd(self, args, platform="desktop"):
+        return json.loads(cron_output.handle(args, resolve_dir=self.resolve, platform=platform))
 
     def test_reads_one_runs_document(self):
         answer = self.run_cmd("output default j1 2026-10-28_09-50-49")
@@ -56,6 +56,16 @@ class ReadOutputTests(unittest.TestCase):
         self.assertTrue(answer["ok"])
         self.assertTrue(answer["truncated"])
         self.assertEqual(len(answer["text"].encode("utf-8")), 512 * 1024)
+
+    def test_a_messaging_gateway_cannot_read_a_run(self):
+        # The dashboard WebSocket passes platform "desktop" or "tui" (tui_gateway agent_factory
+        # _resolve_session_platform). Messaging gateways pass their own platform (telegram, discord, …).
+        for platform in ("telegram", "discord", "slack", "cli", "", None):
+            with self.subTest(platform=platform):
+                self.assertEqual(self.run_cmd("output default j1 2026-10-28_09-50-49", platform),
+                                 {"ok": False, "error": "invalid"})
+        self.assertEqual(self.run_cmd("output default j1 2026-10-28_09-50-49", "tui")["ok"], True)
+        self.assertEqual(self.run_cmd("output default j1 2026-10-28_09-50-49", "desktop")["ok"], True)
 
     def test_register_adds_only_the_one_command(self):
         registered = []

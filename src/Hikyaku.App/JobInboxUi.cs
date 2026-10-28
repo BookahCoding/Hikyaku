@@ -171,6 +171,12 @@ public sealed partial class MainViewModel
 
     public void AttachJobRunDetails(JobRunDetails details, InboxReadStore reads)
     {
+        // One fetcher per connection. A new one drops the previous gateway's remembered results.
+        if (!ReferenceEquals(_runDetails, details))
+        {
+            _runDetailCache.Clear();
+            _runDetailLoading.Clear();
+        }
         _runDetails = details;
         _inboxReads = reads;
     }
@@ -212,7 +218,8 @@ public sealed partial class MainViewModel
         try
         {
             var detail = await details.LoadAsync(row.Result, default).ConfigureAwait(true);
-            _runDetailCache[key] = detail;
+            // A run with no answer yet, or a script preview taken before the gateway could be asked, is not final.
+            if (IsSettled(row.Result, detail)) _runDetailCache[key] = detail;
             foreach (var r in JobResults.Where(x => x.Result.Key == key)) r.SetDetail(detail?.Result);
         }
         catch (Exception ex)
@@ -241,6 +248,19 @@ public sealed partial class MainViewModel
 
     private Task MarkAllJobResultsReadAsync() =>
         MarkJobResultsReadAsync(InFolderList ? _jobResultsAll.ToList() : JobResults.Select(r => r.Result).ToList());
+
+    /// <summary>A row was realized (scrolled into view). Rows past the first screen are fetched then, not left on "Loading…".</summary>
+    public void NoteJobResultRealized(JobResultVM row)
+    {
+        if (_runDetailCache.ContainsKey(row.Result.Key)) return;
+        _ = LoadRunDetailAsync(row);
+    }
+
+    private bool IsSettled(JobResult result, RunDetail? detail)
+    {
+        if (detail is null) return false;
+        return !result.IsScriptOutput || detail.FromPlugin || _runDetails?.PluginPresent is not null;
+    }
 
     /// <summary>A click on a row: show the whole result in place (or close it) and count it as read.</summary>
     private void ToggleJobResult(JobResultVM row)

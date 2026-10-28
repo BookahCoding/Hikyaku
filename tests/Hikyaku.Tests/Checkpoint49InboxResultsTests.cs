@@ -37,6 +37,26 @@ public class Checkpoint49InboxResultsTests
     }
 
     [Fact]
+    public void A_status_that_says_failed_is_failed_and_a_suppressed_or_gated_run_is_silent()
+    {
+        var monitor = CronRunText.Parse("# Cron Job: watch\n\n**Job ID:** j\n**Run Time:** t\n**Mode:** monitor\n**Status:** monitor source failed\n\nconnection reset\n");
+        Assert.Equal(RunStatus.Failed, monitor.Status);
+        Assert.Equal("monitor source failed", monitor.Reason);
+        Assert.Contains("connection reset", monitor.Text);
+
+        var folded = CronRunText.Parse("# Cron Job: watch **Job ID:** j **Run Time:** t **Mode:** monitor **Status:** no_change (agent run suppressed)");
+        Assert.Equal(new RunText(RunStatus.Silent, "", null), folded);
+
+        var gate = CronRunText.Parse("# Cron Job: digest\n\n**Job ID:** j1\n**Run Time:** 2026-10-28 09:50:49\n\nScript gate returned `wakeAgent=false` — agent skipped.\n");
+        Assert.Equal(RunStatus.Silent, gate.Status);
+        Assert.Equal("", gate.Text);
+
+        var broken = CronRunText.Parse("# Cron Job: digest\n\nError: config.yaml is not valid\n");
+        Assert.Equal(RunStatus.Failed, broken.Status);
+        Assert.Contains("config.yaml is not valid", broken.Text);
+    }
+
+    [Fact]
     public void An_agent_documents_response_is_its_framed_section()
     {
         const string doc = "# Cron Job: digest\n\n**Job ID:** j1\n**Run Time:** now\n**Schedule:** every 1h\n\n"
@@ -139,6 +159,69 @@ public class Checkpoint49InboxResultsTests
         var missing = new JobRunDetails((_, _, _, _) => throw new InvalidOperationException(), () => new FakeRpc((_, _) => Plugin("""{"ok":false,"error":"not_found"}""")));
         Assert.Equal("short preview", (await missing.LoadAsync(ScriptRun(), default))!.Result.Text);
         Assert.True(missing.PluginPresent);                                    // the plugin is there; this run's file is not
+    }
+
+    [Fact]
+    public async Task A_plugin_that_does_not_answer_in_time_is_treated_as_absent()
+    {
+        var rpc = new FakeRpc((_, _) => throw new RpcTimeoutException("command.dispatch"));
+        var details = new JobRunDetails((_, _, _, _) => throw new InvalidOperationException(), () => rpc);
+        var d = await details.LoadAsync(ScriptRun(), default);
+        Assert.Equal("short preview", d!.Result.Text);
+        Assert.False(details.PluginPresent);
+        await details.LoadAsync(ScriptRun(), default);
+        Assert.Single(rpc.Args);                                                 // not asked again on every rebuild
+    }
+
+    [Fact]
+    public async Task A_dropped_connection_does_not_mark_the_plugin_absent()
+    {
+        var calls = 0;
+        var rpc = new FakeRpc((_, _) =>
+        {
+            calls++;
+            if (calls == 1) throw new ObjectDisposedException("JsonRpcClient");
+            return Plugin("""{"ok":true,"text":"# Cron Job: mail\n\n---\n\nThe whole output.\n","truncated":false}""");
+        });
+        var details = new JobRunDetails((_, _, _, _) => throw new InvalidOperationException(), () => rpc);
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => details.LoadAsync(ScriptRun(), default));
+        Assert.Null(details.PluginPresent);
+        var d = await details.LoadAsync(ScriptRun(), default);
+        Assert.Equal("The whole output.", d!.Result.Text);
+        Assert.True(d.FromPlugin);
+        Assert.Equal(2, calls);
+    }
+
+    [Fact]
+    public async Task Another_gateways_error_does_not_mark_the_plugin_absent()
+    {
+        var calls = 0;
+        var rpc = new FakeRpc((_, _) =>
+        {
+            calls++;
+            if (calls == 1) throw new RpcException(-32000, "internal");
+            return Plugin("""{"ok":true,"text":"# Cron Job: mail\n\n---\n\nThe whole output.\n","truncated":false}""");
+        });
+        var details = new JobRunDetails((_, _, _, _) => throw new InvalidOperationException(), () => rpc);
+        await Assert.ThrowsAsync<RpcException>(() => details.LoadAsync(ScriptRun(), default));
+        Assert.Null(details.PluginPresent);
+        Assert.True((await details.LoadAsync(ScriptRun(), default))!.FromPlugin);
+    }
+
+    [Fact]
+    public async Task An_agent_that_chose_not_to_reply_is_nothing_new()
+    {
+        JobRunDetails Details(string content) => new((id, profile, limit, ct) =>
+            Task.FromResult<IReadOnlyList<SessionMessage>>([new("1", "assistant", content)]), () => null);
+
+        Assert.Equal(RunStatus.Silent, (await Details("[SILENT]").LoadAsync(AgentRun(), default))!.Result.Status);
+        Assert.Equal("", (await Details("[SILENT]").LoadAsync(AgentRun(), default))!.Result.Text);
+        Assert.Equal(RunStatus.Silent, (await Details("NO_REPLY").LoadAsync(AgentRun(), default))!.Result.Status);
+        Assert.Equal(RunStatus.Silent, (await Details("no reply").LoadAsync(AgentRun(), default))!.Result.Status);
+
+        var prose = await Details("The report mentions NO_REPLY only in passing.").LoadAsync(AgentRun(), default);
+        Assert.Equal(RunStatus.Ok, prose!.Result.Status);
+        Assert.Contains("NO_REPLY", prose.Result.Text);
     }
 
     // ---- InboxReadStore ----
