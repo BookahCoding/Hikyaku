@@ -1718,7 +1718,9 @@
                     <TextBlock Text="{Binding Name}" VerticalAlignment="Center" FontSize="{StaticResource Size.Caption}"/>
                     <Button Content="×" Margin="4,0,0,0" Padding="2,0" Style="{StaticResource CompactChip}"
                             Command="{Binding DataContext.RemoveAttachCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                            CommandParameter="{Binding}"/>
+                            CommandParameter="{Binding}"
+                            AutomationProperties.Name="{Binding RemoveLabel}"
+                            ToolTip="Remove this file. It has not been sent."/>
                   </StackPanel>
                 </Border>
               </DataTemplate>
