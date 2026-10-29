@@ -5,6 +5,8 @@ are `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- Two more themes from Hokusai prints: Kirifuri Falls (foam and waterfall teal) and Thunderstorm (clear sky, storm indigo, and lightning).
+
 ## 0.7.0 — Inbox results, and folders on this PC
 
 Plain-text release notes: [docs/release-notes/v0.7.0.txt](docs/release-notes/v0.7.0.txt). Design:
