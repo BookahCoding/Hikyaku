@@ -5,6 +5,8 @@ are `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- In Simple view, with one profile, the empty message box says "Write a message…" instead of "Message Hermes…". With more than one profile it still names the one you are talking to.
+
 ## 0.7.0 — Inbox results, and folders on this PC
 
 Plain-text release notes: [docs/release-notes/v0.7.0.txt](docs/release-notes/v0.7.0.txt). Design:

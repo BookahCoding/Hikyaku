@@ -27,7 +27,9 @@ public sealed partial class MainViewModel
     public event Action? ModelMenuRequested;
 
     public string ComposerPlaceholder =>
-        CurrentProfileLabel is { Length: > 0 } who && ProfileChoices.Count > 1 ? $"Message {who}…" : "Message Hermes…";
+        CurrentProfileLabel is { Length: > 0 } who && ProfileChoices.Count > 1
+            ? $"Message {who}…"
+            : _advanced ? "Message Hermes…" : "Write a message…";
 
     public Visibility ComposerPlaceholderVisibility => _input.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
 
