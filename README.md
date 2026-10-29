@@ -10,7 +10,7 @@ It is an independent, community-built client. It is not made by or affiliated wi
 
 ## Status
 
-**v0.7.0.** Everything has been built against the published Hermes protocol and tested with
+**v0.7.1.** Everything has been built against the published Hermes protocol and tested with
 automated tests against a simulated gateway (about 1,250 tests), and it is in daily use on one real gateway. Expect rough
 edges with other servers and please report them (see below); fixes arrive as in-app updates.
 
@@ -27,7 +27,7 @@ edges with other servers and please report them (see below); fixes arrive as in-
 - **Advanced tools** for whoever looks after the gateway: scheduled jobs, skills, toolsets and MCP servers, the skills hub,
   a settings editor and `config.yaml` editor, insights, hosted rooms, artifacts, the memory graph (Journey), and local
   projects with folder sharing, Git checkpoints and a local terminal.
-- Six Hokusai-inspired themes with light and dark variants, larger text sizes, keyboard shortcuts (Ctrl+K palette,
+- Eight Hokusai-inspired themes with light and dark variants, larger text sizes, keyboard shortcuts (Ctrl+K palette,
   Ctrl+N, Ctrl+F and more; Ctrl+/ lists them) and respect for Windows reduced-motion and high-contrast settings.
 
 ## Simple and Advanced
