@@ -182,6 +182,29 @@ public class Checkpoint41LiveFeedbackWpfTests
     }
 
     [Fact]
+    public void A_starter_prompt_fills_the_box_and_sends_nothing()
+    {
+        RunSta(() =>
+        {
+            var vm = Make(["default"], advanced: false);
+            vm.NewChat();
+            Assert.Equal(Visibility.Visible, vm.StarterPromptsVisibility);
+            var prompt = Assert.Single(vm.StarterPromptChoices, p => p.Label == "Help me write");
+            Assert.True(vm.ApplyStarterPromptCommand.CanExecute(prompt));
+            vm.ApplyStarterPromptCommand.Execute(prompt);
+            Assert.Equal(prompt.Draft, vm.InputText);
+            Assert.Empty(vm.Messages);
+
+            vm.Messages.Add(new MessageVM("You", "hi"));
+            vm.InputText = "kept";
+            Assert.Equal(Visibility.Collapsed, vm.StarterPromptsVisibility);
+            Assert.False(vm.ApplyStarterPromptCommand.CanExecute(prompt));
+            vm.ApplyStarterPromptCommand.Execute(prompt);
+            Assert.Equal("kept", vm.InputText);
+        });
+    }
+
+    [Fact]
     public void With_one_profile_ticked_there_is_no_switcher()
     {
         RunSta(() =>

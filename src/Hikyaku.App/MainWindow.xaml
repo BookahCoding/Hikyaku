@@ -1697,7 +1697,7 @@
       <!-- Empty chat: a greeting in a serif face (Georgia, built into Windows) above the chat box, as in Claude Desktop -->
       <TextBlock Grid.Row="1" Text="{Binding EmptyChatGreeting}" Visibility="{Binding EmptyChatVisibility}"
                  FontFamily="Georgia" FontSize="30" Foreground="{DynamicResource Brush.Text}"
-                 HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24,0,24,170" TextWrapping="Wrap" TextAlignment="Center"
+                 HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24,0,24,230" TextWrapping="Wrap" TextAlignment="Center"
                  AutomationProperties.Name="Greeting"/>
 
       <!-- Composer: at the bottom; in an empty chat it sits in the middle under the greeting -->
@@ -1714,6 +1714,21 @@
           </Style>
         </Border.Style>
         <StackPanel MaxWidth="820" HorizontalAlignment="Stretch" Margin="24,4">
+          <ItemsControl ItemsSource="{Binding StarterPromptChoices}" Visibility="{Binding StarterPromptsVisibility}"
+                        Margin="0,0,0,10" AutomationProperties.Name="Ways to start">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate><WrapPanel HorizontalAlignment="Center"/></ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Button Content="{Binding Label}" Style="{StaticResource CompactChip}" Margin="4,2"
+                        Command="{Binding DataContext.ApplyStarterPromptCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                        CommandParameter="{Binding}"
+                        AutomationProperties.Name="{Binding Label}"
+                        ToolTip="Puts this in the message box. Nothing is sent until you press Send."/>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
           <TextBlock Text="{Binding SelectedDeliveryHint}" Foreground="{DynamicResource Brush.Warning}"
                      TextWrapping="Wrap" Margin="0,0,0,4" FontSize="{StaticResource Size.Caption}"
                      AutomationProperties.Name="Delivery hint"/>
