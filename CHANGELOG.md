@@ -6,6 +6,10 @@ are `vMAJOR.MINOR.PATCH`.
 ## Unreleased
 
 - In Simple view, with one profile, the empty message box says "Write a message…" instead of "Message Hermes…". With more than one profile it still names the one you are talking to.
+- In Simple view the sidebar says Waiting for you and Pictures & files, and the Inbox tip no longer mentions cron or herald-push. Advanced keeps the previous names.
+- In Simple view, while a reply is running, the chat box keeps Send and Stop and hides Queue and Stop & send. The send button says what it will do in everyday words.
+- An empty chat offers a few ways to start (Help me write, Explain something, Make a plan, Check my writing). Choosing one fills the message box. Nothing is sent until Send.
+- Two more themes from Hokusai prints: Kirifuri Falls (foam and waterfall teal) and Thunderstorm (clear sky, storm indigo, and lightning).
 
 ## 0.7.0 — Inbox results, and folders on this PC
 

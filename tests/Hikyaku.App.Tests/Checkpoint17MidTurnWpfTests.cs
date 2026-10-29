@@ -139,6 +139,39 @@ public class Checkpoint17MidTurnWpfTests
         });
     }
 
+    [Fact]
+    public void Simple_view_hides_queue_and_stop_and_send_and_refuses_them()
+    {
+        RunSta(() =>
+        {
+            var f = Make();
+            Assert.Contains("commands", f.Vm.SendToolTip, StringComparison.OrdinalIgnoreCase);
+            var hold = Hold();
+            FirstTurnHolds(f, hold);
+            StartFirst(f);
+            f.Vm.InputText = "more";
+            Assert.Equal(Visibility.Visible, f.Vm.MidTurnExtrasVisibility);
+            Assert.Contains("already running", f.Vm.SendToolTip, StringComparison.OrdinalIgnoreCase);
+
+            f.Vm.ApplyExperience(false);
+            Assert.Equal(Visibility.Collapsed, f.Vm.MidTurnExtrasVisibility);
+            Assert.False(f.Vm.QueueCommand!.CanExecute(null));
+            Assert.False(f.Vm.StopAndSendCommand!.CanExecute(null));
+            Assert.True(f.Vm.SendCommand.CanExecute(null));
+            Assert.Equal(Visibility.Visible, f.Vm.StopButtonVisibility);
+            Assert.DoesNotContain("steer", f.Vm.SendToolTip, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("already going", f.Vm.SendToolTip, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal("more", f.Vm.InputText);
+            f.Vm.QueueCommand.Execute(null);
+            f.Vm.StopAndSendCommand.Execute(null);
+            Assert.Equal("more", f.Vm.InputText);                       // refused: the draft stays, nothing is queued or stopped
+            Assert.Empty(f.Convo.Queue);
+
+            hold.SetResult();
+            Pump(200);
+        });
+    }
+
     // ---- steer -----------------------------------------------------------------------------------
 
     [Fact]

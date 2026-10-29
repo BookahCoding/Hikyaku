@@ -146,10 +146,12 @@ public sealed partial class MainViewModel
             nameof(SessionFiltersVisibility), nameof(SettingsConnectionVisibility), nameof(VoiceStatusVisibility),
             nameof(InboxSetupVisibility), nameof(InboxSimpleIntroVisibility), nameof(ConfigEditorVisibility), nameof(McpEditVisibility),
             nameof(ReasoningDetailsVisibility), nameof(PlanDetailsVisibility), nameof(NoticeDetailsVisibility), nameof(UpdateNoticeVisibility), nameof(VoiceChatButtonVisibility), nameof(JobInboxPluginHintVisibility), nameof(AdvancedActivityVisibility), nameof(SimpleActivityVisibility), nameof(ComposerPlaceholder),
-            nameof(FolderKeyFilesVisibility), nameof(FolderBridgePluginHint), nameof(FolderBridgePluginHintVisibility)
+            nameof(FolderKeyFilesVisibility), nameof(FolderBridgePluginHint), nameof(FolderBridgePluginHintVisibility),
+            nameof(NeedsYouNavLabel), nameof(NeedsYouNavToolTip), nameof(NeedsYouFilterLabel), nameof(ArtifactsNavLabel), nameof(InboxNavToolTip)
         }) Raise(n);
         RaiseRiskNotice();
         RaiseStatus();
+        RefreshMidTurnCommands();
         LeaveHiddenPage();
         if (!_advanced) _ = RefreshApprovalsRiskAsync();      // Simple must show "approvals are Off" if that is the case on this profile
     }

@@ -94,7 +94,12 @@ public class Checkpoint49InboxResultsWpfTests
     private static void RunSta(Action action)
     {
         Exception? error = null;
-        var t = new Thread(() => { try { action(); } catch (Exception ex) { error = ex; } });
+        var t = new Thread(() =>
+        {
+            // Install the WPF context before async loads start, keeping continuations on this dispatcher.
+            SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+            try { action(); } catch (Exception ex) { error = ex; }
+        });
         t.SetApartmentState(ApartmentState.STA);
         t.Start();
         t.Join();

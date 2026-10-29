@@ -52,6 +52,15 @@ public sealed partial class MainViewModel
 
     public string SendLabel => _busy ? "Steer" : "Send";
     public Visibility RunningActionsVisibility => _busy ? Visibility.Visible : Visibility.Collapsed;
+    /// <summary>Queue and Stop &amp; send. Advanced only; Simple keeps the send arrow and Stop.</summary>
+    public Visibility MidTurnExtrasVisibility =>
+        _busy && Shows(ExperienceFeature.MidTurnActions) ? Visibility.Visible : Visibility.Collapsed;
+    /// <summary>The send arrow. Simple never says "steer" or mentions slash commands.</summary>
+    public string SendToolTip => !_busy
+        ? (_advanced ? "Send (Enter). Type / for commands." : "Send (Enter).")
+        : _advanced
+            ? "Add this to the reply that is already running."
+            : "Send this with the reply that is already going.";
     public string RunningHint => "A reply is running. Steer slips your message into it, Queue sends it after, Stop & send replaces the reply. Queued messages are kept in this app only.";
 
     private void InitMidTurnCommands()
@@ -63,13 +72,16 @@ public sealed partial class MainViewModel
     }
 
     private bool CanMidTurn(bool allowAttachments) =>
-        _busy && !IsEditing && SelectedConversation is not null
+        Shows(ExperienceFeature.MidTurnActions)
+        && _busy && !IsEditing && SelectedConversation is not null
         && ((_input.Trim().Length > 0 && (allowAttachments || _attachQueue.Items.Count == 0)) || (allowAttachments && _attachQueue.Items.Count > 0));
 
     private void RefreshMidTurnCommands()
     {
         Raise(nameof(SendLabel));
         Raise(nameof(RunningActionsVisibility));
+        Raise(nameof(MidTurnExtrasVisibility));
+        Raise(nameof(SendToolTip));
         (QueueCommand as RelayCommand)?.Refresh();
         (StopAndSendCommand as RelayCommand)?.Refresh();
     }
@@ -93,6 +105,7 @@ public sealed partial class MainViewModel
 
     private async Task QueueNowAsync()
     {
+        if (!Shows(ExperienceFeature.MidTurnActions)) return;
         var convo = SelectedConversation;
         var text = _input.Trim();
         if (convo is null || text.Length == 0 || !_busy) return;
@@ -277,6 +290,7 @@ public sealed partial class MainViewModel
 
     private async Task StopAndSendAsync()
     {
+        if (!Shows(ExperienceFeature.MidTurnActions)) return;
         var convo = SelectedConversation;
         var text = _input.Trim();
         if (convo is null || !_busy) return;

@@ -60,6 +60,24 @@ public sealed partial class MainViewModel
         ProfileChoices.Count > 1 && CurrentProfileLabel is { Length: > 0 } who && who != ActiveProfile.GatewayDefault
             ? $"How can {who} help today?" : "How can I help you today?";   // a bare "default" id is not a name
 
+    /// <summary>Suggestions under the greeting. Choosing one fills the box; nothing is sent.</summary>
+    public IReadOnlyList<StarterPrompt> StarterPromptChoices => StarterPrompts.All;
+    public Visibility StarterPromptsVisibility => EmptyChatVisibility;
+    public event Action? StarterPromptApplied;
+
+    private RelayCommand? _applyStarter;
+    public System.Windows.Input.ICommand ApplyStarterPromptCommand => _applyStarter ??= new RelayCommand(
+        p => { if (p is StarterPrompt prompt) ApplyStarterPrompt(prompt); },
+        p => IsChatEmpty && p is StarterPrompt);
+
+    /// <summary>Puts the suggestion in the box. Refuses once the chat has started, and never sends.</summary>
+    public void ApplyStarterPrompt(StarterPrompt prompt)
+    {
+        if (!IsChatEmpty || string.IsNullOrWhiteSpace(prompt.Draft)) return;
+        InputText = prompt.Draft;
+        StarterPromptApplied?.Invoke();
+    }
+
     private bool _emptyHooked;
 
     private void HookEmptyChatState()
@@ -74,6 +92,8 @@ public sealed partial class MainViewModel
         Raise(nameof(IsChatEmpty));
         Raise(nameof(EmptyChatVisibility));
         Raise(nameof(EmptyChatGreeting));
+        Raise(nameof(StarterPromptsVisibility));
+        _applyStarter?.Refresh();
     }
 
     private void RaiseComposerState()

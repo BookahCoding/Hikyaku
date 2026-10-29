@@ -11,11 +11,11 @@ namespace Hikyaku.Tests;
 public class Checkpoint7ThemeTests
 {
     [Fact]
-    public void ThemeCatalog_Exposes_Six_Hokusai_Palettes()
+    public void ThemeCatalog_Exposes_Eight_Hokusai_Palettes()
     {
         var ids = ThemeCatalog.All.Select(t => t.Id).ToArray();
-        // Stage 43 added two from Hokusai's Large Flowers series (the maintainer asked for two more).
-        Assert.Equal(new[] { "washi-ink", "great-wave", "red-fuji", "pine-mist", "chrysanthemum", "peony" }, ids);
+        // Stage 43 added two from Hokusai's Large Flowers series. Kirifuri Falls and Thunderstorm Beneath the Summit followed.
+        Assert.Equal(new[] { "washi-ink", "great-wave", "red-fuji", "pine-mist", "chrysanthemum", "peony", "kirifuri", "thunderstorm" }, ids);
         Assert.All(ThemeCatalog.All, t =>
         {
             Assert.False(string.IsNullOrWhiteSpace(t.DisplayName));
@@ -26,7 +26,27 @@ public class Checkpoint7ThemeTests
             Assert.True(ContrastRatio(t.Dark.Text, t.Dark.Bg) >= 4.5, t.Id + " dark text/bg");
             Assert.True(ContrastRatio(t.Light.Accent, t.Light.OnAccent) >= 3.0, t.Id + " light accent");
             Assert.True(ContrastRatio(t.Dark.Accent, t.Dark.OnAccent) >= 3.0, t.Id + " dark accent");
+            Assert.True(ContrastRatio(t.Light.TextMuted, t.Light.Bg) >= 4.5, t.Id + " light muted");
+            Assert.True(ContrastRatio(t.Dark.TextMuted, t.Dark.Bg) >= 4.5, t.Id + " dark muted");
         });
+    }
+
+    [Fact]
+    public void Kirifuri_and_Thunderstorm_read_apart_from_the_earlier_families_and_from_each_other()
+    {
+        var fresh = new[] { "kirifuri", "thunderstorm" }.Select(ThemeCatalog.Get).ToArray();
+        var earlier = new[] { "washi-ink", "great-wave", "red-fuji", "pine-mist", "chrysanthemum", "peony" }.Select(ThemeCatalog.Get);
+        foreach (var theme in fresh)
+        {
+            foreach (var other in earlier.Append(fresh.Single(t => t.Id != theme.Id)))
+            {
+                // Light paper and accent both have to move, or the swatch is another pale sheet with a familiar pill.
+                Assert.True(RgbDistance(theme.Light.Bg, other.Light.Bg) >= 36, theme.Id + " light bg vs " + other.Id);
+                Assert.True(RgbDistance(theme.Light.Accent, other.Light.Accent) >= 40, theme.Id + " light accent vs " + other.Id);
+                // Dark grounds are all near-black; the accent pill is what separates them in the gallery.
+                Assert.True(RgbDistance(theme.Dark.Accent, other.Dark.Accent) >= 55, theme.Id + " dark accent vs " + other.Id);
+            }
+        }
     }
 
     [Fact]
@@ -78,6 +98,22 @@ public class Checkpoint7ThemeTests
         var lighter = Math.Max(l1, l2);
         var darker = Math.Min(l1, l2);
         return (lighter + 0.05) / (darker + 0.05);
+    }
+
+    private static double RgbDistance(string hexA, string hexB)
+    {
+        static (int r, int g, int b) Parse(string hex)
+        {
+            hex = hex.TrimStart('#');
+            if (hex.Length == 8) hex = hex[^6..];
+            return (Convert.ToInt32(hex[..2], 16), Convert.ToInt32(hex[2..4], 16), Convert.ToInt32(hex[4..6], 16));
+        }
+        var a = Parse(hexA);
+        var b = Parse(hexB);
+        var dr = a.r - b.r;
+        var dg = a.g - b.g;
+        var db = a.b - b.b;
+        return Math.Sqrt(dr * dr + dg * dg + db * db);
     }
 }
 

@@ -217,6 +217,31 @@ public class Checkpoint36SimpleModeWpfTests
             Assert.Equal(MainNav.Inbox, simple.Nav);
         });
     }
+
+    [Fact]
+    public void Simple_sidebar_uses_everyday_names_and_advanced_keeps_the_old_ones()
+    {
+        RunSta(() =>
+        {
+            var simple = Make(advanced: false);
+            Assert.Equal("Waiting for you", simple.NeedsYouNavLabel);
+            Assert.Equal("Waiting for you", simple.NeedsYouFilterLabel);
+            Assert.Equal("Pictures & files", simple.ArtifactsNavLabel);
+            Assert.DoesNotContain("cron", simple.InboxNavToolTip, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("herald", simple.InboxNavToolTip, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("cron", simple.NeedsYouNavToolTip, StringComparison.OrdinalIgnoreCase);
+
+            var advanced = Make(advanced: true);
+            Assert.Equal("Needs you", advanced.NeedsYouNavLabel);
+            Assert.Equal("Needs you", advanced.NeedsYouFilterLabel);
+            Assert.Equal("Artifacts", advanced.ArtifactsNavLabel);
+            Assert.Contains("herald-push", advanced.InboxNavToolTip, StringComparison.Ordinal);
+
+            simple.ApplyExperience(true);
+            Assert.Equal("Needs you", simple.NeedsYouNavLabel);
+            Assert.Equal("Artifacts", simple.ArtifactsNavLabel);
+        });
+    }
 }
 
 file sealed class MemPrefs36 : IPreferenceStore

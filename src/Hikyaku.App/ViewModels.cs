@@ -596,7 +596,16 @@ public sealed partial class MainViewModel : Observable
     }
     public Visibility NeedsYouStatusVisibility => _needsYouStatus.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     public int NeedsYouCount => NeedsYouItems.Count;
-    public string NeedsYouNavLabel => NeedsYouCount == 0 ? "Needs you" : $"Needs you ({NeedsYouCount})";
+    public string NeedsYouNavLabel => WithCount(_advanced ? "Needs you" : "Waiting for you", NeedsYouCount);
+    public string NeedsYouNavToolTip => _advanced
+        ? "Questions and approvals waiting for an answer."
+        : "Hermes is waiting for your answer.";
+    public string ArtifactsNavLabel => _advanced ? "Artifacts" : "Pictures & files";
+    public string InboxNavToolTip => _advanced
+        ? "Followed cron outputs (herald-push). Separate from Needs you."
+        : "Things Hermes has finished for you.";
+
+    private static string WithCount(string name, int count) => count == 0 ? name : $"{name} ({count})";
     public string SessionSearch { get => _sessionSearch; set => Set(ref _sessionSearch, value); }
     public string? InboxJobFilter { get => _inboxJobFilter; set { Set(ref _inboxJobFilter, value); Raise(nameof(InboxFilterLabel)); } }
     public string? InboxGroupFilter { get => _inboxGroupFilter; set { Set(ref _inboxGroupFilter, value); Raise(nameof(InboxFilterLabel)); } }
