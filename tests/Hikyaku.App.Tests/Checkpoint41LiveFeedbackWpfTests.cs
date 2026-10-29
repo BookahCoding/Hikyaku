@@ -160,6 +160,28 @@ public class Checkpoint41LiveFeedbackWpfTests
     }
 
     [Fact]
+    public void Simple_view_asks_you_to_write_a_message_instead_of_naming_Hermes()
+    {
+        RunSta(() =>
+        {
+            var simple = Make(["default"], advanced: false);
+            simple.NewChat();
+            Assert.Equal("Write a message…", simple.ComposerPlaceholder);
+            var advanced = Make(["default"]);
+            advanced.NewChat();
+            Assert.Equal("Message Hermes…", advanced.ComposerPlaceholder);
+
+            var named = Make(["bookahmail", "default"], advanced: false);
+            named.SetProfileNames(new Dictionary<string, string> { ["default"] = "Shisha" });
+            named.NewChat();
+            Assert.Equal("Message Shisha…", named.ComposerPlaceholder);
+
+            simple.ApplyExperience(true);
+            Assert.Equal("Message Hermes…", simple.ComposerPlaceholder);
+        });
+    }
+
+    [Fact]
     public void An_empty_chat_greets_by_the_chosen_agent_and_the_greeting_leaves_once_the_chat_starts()
     {
         RunSta(() =>
