@@ -5,7 +5,11 @@ are `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
-- A version tag publishes a signed GitHub Release from GitHub Actions. The signing key is a repository secret, not a file in the repository. See docs/RELEASING.md.
+## 0.7.3 — Ordinary profile chats, local models, and automatic releases
+
+- A profile is a bot only when Bot Mode was set up for it (a creation time, or a title or look of its own). Opening Shisha, or another profile that only has a display name, from the roster starts an ordinary chat. The existing chat titled "Bot Chat" is left as it is.
+- The model menu keeps local and custom providers that do not use a cloud API key (llama.cpp, Ollama, LM Studio, and a custom endpoint), including when they have no price. A cloud provider that still needs a key stays hidden.
+- Signed releases are built automatically.
 
 ## 0.7.2 — Ordinary profile chats, and local models
 
