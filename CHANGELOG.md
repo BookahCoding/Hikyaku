@@ -5,6 +5,8 @@ are `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+## 0.7.1 — Simpler chats and two new themes
+
 - In Simple view, with one profile, the empty message box says "Write a message…" instead of "Message Hermes…". With more than one profile it still names the one you are talking to.
 - In Simple view the sidebar says Waiting for you and Pictures & files, and the Inbox tip no longer mentions cron or herald-push. Advanced keeps the previous names.
 - In Simple view, while a reply is running, the chat box keeps Send and Stop and hides Queue and Stop & send. The send button says what it will do in everyday words.
