@@ -284,6 +284,43 @@ public class Checkpoint5ModelTests
     }
 
     [Fact]
+    public void A_local_provider_with_models_and_no_price_stays_selectable()
+    {
+        var catalog = ModelCatalog.Parse(JsonNode.Parse("""
+        {"providers":[
+          {"slug":"llamacpp","name":"Local","models":["qwen"],"authenticated":false,"auth_type":"local"},
+          {"slug":"ollama","name":"Ollama","models":["llama3"],"authenticated":false},
+          {"slug":"lmstudio","name":"LM Studio","models":["qwen-local"],"authenticated":false,"auth_type":"api_key","key_env":"LM_API_KEY"},
+          {"slug":"custom:box","name":"My GPU","models":["box-model"],"authenticated":false,"is_user_defined":true},
+          {"slug":"my-gpu","name":"Bench","models":["bench"],"authenticated":false,"is_user_defined":true},
+          {"slug":"runtime","name":"Local","models":["gguf"],"authenticated":true},
+          {"slug":"anthropic","name":"Anthropic","models":["claude"],"authenticated":false},
+          {"slug":"ollama-cloud","name":"Ollama Cloud","models":["cloud"],"authenticated":false,"auth_type":"api_key","key_env":"OLLAMA_API_KEY"},
+          {"slug":"proxy","name":"Proxy","models":["paid"],"authenticated":false,"auth_type":"api_key","key_env":"PROXY_KEY","is_user_defined":true},
+          {"slug":"empty-local","name":"Local","models":[],"authenticated":false,"auth_type":"local"}
+        ]}
+        """) as JsonObject).WithChosen(new HashSet<string>());
+
+        var usable = catalog.Usable();
+        Assert.Equal(
+            new[] { "llamacpp", "ollama", "lmstudio", "custom:box", "my-gpu", "runtime" },
+            usable.Providers.Select(p => p.Slug).ToArray());
+        Assert.All(usable.Providers, p =>
+        {
+            Assert.True(p.Chosen);
+            Assert.True(p.Keyless);
+            Assert.Null(Assert.Single(p.Models).Price);
+        });
+        Assert.Equal(
+            new[] { "qwen", "llama3", "qwen-local", "box-model", "bench", "gguf" },
+            usable.Providers.SelectMany(p => p.Models).Select(m => m.Id).ToArray());
+        Assert.Null(catalog.Find("anthropic", "claude"));
+        Assert.Null(catalog.Find("ollama-cloud", "cloud"));
+        Assert.Null(catalog.Find("proxy", "paid"));
+        Assert.Null(catalog.Find("empty-local", "missing"));
+    }
+
+    [Fact]
     public async Task SetModel_UsesConfigSet_SessionScope_NoAutoPaidSwitch()
     {
         var sock = new FakeRpcTransport();

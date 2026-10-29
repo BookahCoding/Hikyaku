@@ -6,6 +6,7 @@ are `vMAJOR.MINOR.PATCH`.
 ## Unreleased
 
 - A profile is a bot only when Bot Mode was set up for it (a creation time, or a title or look of its own). Opening Shisha, or another profile that only has a display name, from the roster starts an ordinary chat. The existing chat titled "Bot Chat" is left as it is.
+- The model menu keeps local and custom providers that do not use a cloud API key (llama.cpp, Ollama, LM Studio, and a custom endpoint), including when they have no price. A cloud provider that still needs a key stays hidden.
 
 ## 0.7.1 — Simpler chats and two new themes
 
