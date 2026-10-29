@@ -10,7 +10,7 @@ It is an independent, community-built client. It is not made by or affiliated wi
 
 ## Status
 
-**v0.7.1.** Everything has been built against the published Hermes protocol and tested with
+**v0.7.2.** Everything has been built against the published Hermes protocol and tested with
 automated tests against a simulated gateway (about 1,250 tests), and it is in daily use on one real gateway. Expect rough
 edges with other servers and please report them (see below); fixes arrive as in-app updates.
 
