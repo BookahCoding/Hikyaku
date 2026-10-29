@@ -5,6 +5,8 @@ are `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- A version tag publishes a signed GitHub Release from GitHub Actions. The signing key is a repository secret, not a file in the repository. See docs/RELEASING.md.
+
 ## 0.7.2 — Ordinary profile chats, and local models
 
 - A profile is a bot only when Bot Mode was set up for it (a creation time, or a title or look of its own). Opening Shisha, or another profile that only has a display name, from the roster starts an ordinary chat. The existing chat titled "Bot Chat" is left as it is.

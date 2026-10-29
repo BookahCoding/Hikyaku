@@ -1,5 +1,5 @@
-# Builds and tests every push and pull request. Uses no secrets and publishes nothing: release packages are built and
-# signed by hand by the maintainer (scripts/package.ps1), never in CI, and the signing key never enters GitHub.
+# Builds and tests every push and pull request. Uses no secrets and publishes nothing.
+# Signed releases are published by release.yml, which reads the private key from the Actions secret and does not store it.
 name: CI
 
 on:
