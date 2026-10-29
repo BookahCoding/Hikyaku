@@ -1896,7 +1896,7 @@
                   <TextBlock Style="{StaticResource IconGlyph}" Text="&#xE7F6;"/>
                 </Button>
                 <Button DockPanel.Dock="Right" Style="{StaticResource SendButton}" Command="{Binding SendCommand}" Visibility="{Binding SendButtonVisibility}"
-                        ToolTip="Send (Enter). While a reply is running this adds your message to it. Type / for commands."
+                        ToolTip="{Binding SendToolTip}"
                         AutomationProperties.Name="Send or steer">
                   <TextBlock Style="{StaticResource IconGlyph}" Text="&#xE74A;" FontWeight="Bold"/>
                 </Button>
@@ -1905,11 +1905,11 @@
                   <TextBlock Style="{StaticResource IconGlyph}" Text="&#xE71A;" FontSize="12"/>
                 </Button>
                 <Button DockPanel.Dock="Right" Content="Stop &amp; send" Command="{Binding StopAndSendCommand}" Style="{StaticResource CompactChip}"
-                        Visibility="{Binding RunningActionsVisibility}"
+                        Visibility="{Binding MidTurnExtrasVisibility}"
                         ToolTip="Stop the running reply and send this as a new message."
                         AutomationProperties.Name="Stop and send"/>
                 <Button DockPanel.Dock="Right" Content="Queue" Command="{Binding QueueCommand}" Style="{StaticResource CompactChip}"
-                        Visibility="{Binding RunningActionsVisibility}"
+                        Visibility="{Binding MidTurnExtrasVisibility}"
                         ToolTip="Send this after the reply finishes. Kept in this app only: closing it, stopping the reply or an error puts it back in the box."
                         AutomationProperties.Name="Queue message"/>
                 <Button DockPanel.Dock="Right" Content="YOLO on" Command="{Binding ToggleYoloCommand}" Visibility="{Binding YoloPillVisibility}"

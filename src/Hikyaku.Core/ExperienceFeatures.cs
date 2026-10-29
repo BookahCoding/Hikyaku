@@ -11,6 +11,8 @@ public enum ExperienceFeature
     ProfileSwitcher,
     // chat chrome
     ModelChip, BranchChat, ReasoningChip, FastChip, ToolDetails, SessionFilters, Terminal,
+    // Queue and Stop & send while a reply is already running. Simple keeps Send and Stop.
+    MidTurnActions,
     // what the agent did while answering (Stage 44): the reasoning text, the plan checklist and the agent's notices (such as
     // "Context was compressed"); Simple keeps a plain activity line and the risk warning
     ReasoningDetails, AgentPlan, AgentNotices,
