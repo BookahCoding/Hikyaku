@@ -194,6 +194,12 @@ public partial class MainWindow : Window
         _vm.AttachJobInbox(_jobInboxPrefs);
         BindJobRunDetails();
         _vm.ModelMenuRequested += () => ModelMenu_Click(ModelMenuButton, new RoutedEventArgs());
+        _vm.StarterPromptApplied += () =>
+            Dispatcher.BeginInvoke(() =>
+            {
+                Composer.Focus();
+                Composer.CaretIndex = Composer.Text.Length;
+            }, System.Windows.Threading.DispatcherPriority.Input);
         _vm.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(MainViewModel.Nav)) FadeInPage(); };
         _vm.ActiveProfileChosen += id =>
         {
