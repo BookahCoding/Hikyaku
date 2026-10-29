@@ -151,6 +151,7 @@ public sealed partial class MainViewModel
         }) Raise(n);
         RaiseRiskNotice();
         RaiseStatus();
+        RefreshMidTurnCommands();
         LeaveHiddenPage();
         if (!_advanced) _ = RefreshApprovalsRiskAsync();      // Simple must show "approvals are Off" if that is the case on this profile
     }
