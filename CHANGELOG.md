@@ -5,6 +5,8 @@ are `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- In Simple view the sidebar says Waiting for you and Pictures & files, and the Inbox tip no longer mentions cron or herald-push. Advanced keeps the previous names.
+
 ## 0.7.0 — Inbox results, and folders on this PC
 
 Plain-text release notes: [docs/release-notes/v0.7.0.txt](docs/release-notes/v0.7.0.txt). Design:

@@ -80,7 +80,7 @@
             </StackPanel>
           </Button>
           <Button x:Name="NavInbox" Command="{Binding ShowInboxCommand}" Style="{StaticResource NavRowButton}"
-                  ToolTip="Followed cron outputs (herald-push). Separate from Needs you."
+                  ToolTip="{Binding InboxNavToolTip}"
                   AutomationProperties.Name="Inbox"
                   Click="NavSide_Click">
             <StackPanel Orientation="Horizontal">
@@ -119,11 +119,11 @@
           <Button x:Name="NavArtifacts" Command="{Binding ShowArtifactsCommand}" Style="{StaticResource NavRowButton}"
                   Visibility="{Binding ArtifactsNavVisibility}"
                   ToolTip="Pictures, files and links from your recent chats."
-                  AutomationProperties.Name="Artifacts"
+                  AutomationProperties.Name="{Binding ArtifactsNavLabel}"
                   Click="NavSide_Click">
             <StackPanel Orientation="Horizontal">
               <TextBlock Text="&#xE8B9;" Style="{StaticResource NavGlyph}"/>
-              <TextBlock Text="Artifacts"/>
+              <TextBlock Text="{Binding ArtifactsNavLabel}"/>
             </StackPanel>
           </Button>
           <Button x:Name="NavJourney" Visibility="{Binding JourneyNavVisibility}" Command="{Binding ShowJourneyCommand}" Style="{StaticResource NavRowButton}"
@@ -145,7 +145,8 @@
             </StackPanel>
           </Button>
           <Button x:Name="NavNeeds" Command="{Binding ShowNeedsYouCommand}" Style="{StaticResource NavRowButton}"
-                  AutomationProperties.Name="Needs you"
+                  AutomationProperties.Name="{Binding NeedsYouNavLabel}"
+                  ToolTip="{Binding NeedsYouNavToolTip}"
                   Click="NavSide_Click">
             <StackPanel Orientation="Horizontal">
               <TextBlock Text="&#xEA8F;" Style="{StaticResource NavGlyph}"/>

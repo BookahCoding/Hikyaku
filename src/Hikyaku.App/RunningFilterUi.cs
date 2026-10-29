@@ -42,7 +42,11 @@ public sealed partial class MainViewModel
 
     public bool RunningFilterOn => _runningFilterOn && _attention == AttentionFilter.Running;
     public string RunningFilterLabel => RunningFilterOn && _live?.Current.HasAnswer == true ? $"Running ({_runningCount})" : "Running";
-    public string NeedsYouFilterLabel => _attention == AttentionFilter.NeedsYou ? $"Needs you ({_needsYouListed})" : "Needs you";
+    public string NeedsYouFilterLabel => _attention == AttentionFilter.NeedsYou
+        ? $"{NeedsYouWord} ({_needsYouListed})"
+        : NeedsYouWord;
+
+    private string NeedsYouWord => _advanced ? "Needs you" : "Waiting for you";
     public string LiveNote => _liveNote;
     public Visibility LiveNoteVisibility => _liveNote.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
 
