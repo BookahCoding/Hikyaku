@@ -121,6 +121,7 @@ You need Windows and the [.NET 9 SDK](https://dotnet.microsoft.com/download/dotn
 The build output in `artifacts/Hikyaku` is framework-dependent (it needs the .NET 9 Desktop Runtime). For a
 self-contained zip like the releases use `./scripts/package.ps1 -Version v1.2.3` (unsigned unless you pass your own key);
 add `-Installer` to build the setup program too (needs [Inno Setup 6](https://jrsoftware.org/isinfo.php)).
+Publishing a signed release for the in-app updater is [docs/RELEASING.md](docs/RELEASING.md): a `vX.Y.Z` tag runs GitHub Actions, which signs with the repository secret and publishes the release.
 
 ## Run the tests
 

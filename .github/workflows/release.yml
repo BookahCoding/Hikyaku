@@ -1,0 +1,157 @@
+# Builds, signs, and publishes a GitHub Release the in-app updater can install.
+# The private key is the repository secret HIKYAKU_RELEASE_KEY_PEM. It is written to a temp file for
+# scripts/package.ps1 and deleted afterwards. It is never printed and never committed.
+# Pushing a tag vMAJOR.MINOR.PATCH runs this. An existing tag (such as v0.7.2) is published with
+# Actions → Release → Run workflow, tag input v0.7.2. See docs/RELEASING.md.
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build and publish, for example v0.7.2'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - name: Resolve the release tag
+        id: tag
+        shell: pwsh
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          $tag = if ($env:EVENT_NAME -eq 'workflow_dispatch') { $env:INPUT_TAG } else { $env:REF_NAME }
+          $tag = if ($null -eq $tag) { '' } else { $tag.Trim() }
+          if ($tag -notmatch '^v\d+\.\d+\.\d+$') {
+            Write-Error "Refusing to publish '$tag'. The tag must be vMAJOR.MINOR.PATCH (for example v0.7.2)."
+            exit 1
+          }
+          Add-Content -Path $env:GITHUB_ENV -Value "RELEASE_TAG=$tag" -Encoding utf8NoBOM
+          Add-Content -Path $env:GITHUB_ENV -Value "RELEASE_VERSION=$($tag.Substring(1))" -Encoding utf8NoBOM
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "tag=$tag" -Encoding utf8NoBOM
+          Write-Host "Release tag: $tag"
+
+      - name: Checkout the tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.tag.outputs.tag }}
+          persist-credentials: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Install Inno Setup 6
+        shell: pwsh
+        run: choco install innosetup -y --no-progress
+
+      - name: Write the signing key
+        shell: pwsh
+        env:
+          HIKYAKU_RELEASE_KEY_PEM: ${{ secrets.HIKYAKU_RELEASE_KEY_PEM }}
+        run: |
+          $key = $env:HIKYAKU_RELEASE_KEY_PEM
+          if ([string]::IsNullOrWhiteSpace($key)) {
+            Write-Error "Secret HIKYAKU_RELEASE_KEY_PEM is missing. Add the full PEM under Settings → Secrets and variables → Actions → New repository secret. The name is HIKYAKU_RELEASE_KEY_PEM. See docs/RELEASING.md. The value was not printed."
+            exit 1
+          }
+          if ($key -notmatch 'BEGIN [A-Z ]*PRIVATE KEY') {
+            Write-Error "Secret HIKYAKU_RELEASE_KEY_PEM is set, but it is not a PEM private key. Paste the whole PEM, including its begin and end lines. The value was not printed."
+            exit 1
+          }
+          $key = $key.Replace("`r`n", "`n").Replace("`r", "`n")
+          if (-not $key.EndsWith("`n")) { $key += "`n" }
+          $path = Join-Path $env:RUNNER_TEMP 'hikyaku-release-key.pem'
+          $utf8 = New-Object System.Text.UTF8Encoding $false
+          [System.IO.File]::WriteAllText($path, $key, $utf8)
+          Write-Host "Signing key written to a temp file. The key was not printed."
+
+      - name: Package and sign
+        shell: pwsh
+        run: |
+          $key = Join-Path $env:RUNNER_TEMP 'hikyaku-release-key.pem'
+          & ./scripts/package.ps1 -Version $env:RELEASE_TAG -KeyPath $key -Installer
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify the signature
+        shell: pwsh
+        run: |
+          $src = Get-Content -Raw 'src/Hikyaku.Core/Updates/ReleaseSigning.cs'
+          if ($src -notmatch 'PublisherPublicKeySpkiBase64[\s\S]*?"([A-Za-z0-9+/=]+)"') {
+            Write-Error "Could not read UpdateTrust.PublisherPublicKeySpkiBase64."
+            exit 1
+          }
+          $pub = $Matches[1]
+          dotnet build tools/Hikyaku.ReleaseTool/Hikyaku.ReleaseTool.csproj -c Release -nologo
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $tool = Join-Path (Get-Location) 'tools\Hikyaku.ReleaseTool\bin\Release\net9.0\Hikyaku.ReleaseTool.exe'
+          $zip = 'artifacts/release/Hikyaku-win-x64.zip'
+          $sig = 'artifacts/release/Hikyaku-win-x64.zip.sig'
+          & $tool verify --pub $pub --version $env:RELEASE_TAG --zip $zip --sig $sig > verify-out.txt
+          $code = $LASTEXITCODE
+          $output = Get-Content -Raw verify-out.txt
+          Remove-Item verify-out.txt -Force
+          Write-Host $output
+          if ($code -ne 0 -or $output -notmatch '(?m)^Ok\s*$') {
+            Write-Error "Signature verify failed. Expected Ok from Hikyaku.ReleaseTool against the embedded public key. No release was published."
+            exit 1
+          }
+
+      - name: Publish the GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $ver = $env:RELEASE_VERSION
+          $tag = $env:RELEASE_TAG
+          $setup = "artifacts/release/Hikyaku-Setup-$ver.exe"
+          $zip = 'artifacts/release/Hikyaku-win-x64.zip'
+          $sig = 'artifacts/release/Hikyaku-win-x64.zip.sig'
+          foreach ($path in @($setup, $zip, $sig)) {
+            if (-not (Test-Path -LiteralPath $path)) {
+              Write-Error "Missing release file: $path"
+              exit 1
+            }
+          }
+          $notes = "docs/release-notes/$tag.txt"
+          $ghArgs = @('release', 'create', $tag, '--title', "Hikyaku $ver", '--latest', $setup, $zip, $sig)
+          if (Test-Path -LiteralPath $notes) {
+            Write-Host "Using release notes $notes"
+            $ghArgs += @('--notes-file', $notes)
+          } else {
+            Write-Host "No docs/release-notes/$tag.txt. Publishing with a one-line note."
+            $ghArgs += @('--notes', "Hikyaku $ver")
+          }
+          gh @ghArgs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+      - name: Delete the signing key
+        if: always()
+        shell: pwsh
+        run: |
+          $path = Join-Path $env:RUNNER_TEMP 'hikyaku-release-key.pem'
+          if (Test-Path -LiteralPath $path) {
+            Remove-Item -LiteralPath $path -Force
+          }
+          if (Test-Path -LiteralPath $path) {
+            Write-Error "The signing key file is still on disk."
+            exit 1
+          }
+          Write-Host "Signing key file removed."
