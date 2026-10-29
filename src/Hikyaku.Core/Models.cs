@@ -24,7 +24,15 @@ public sealed record ModelProvider(
     IReadOnlyList<ModelOption> Models,
     IReadOnlyList<string>? Featured = null,
     string? Warning = null,
-    bool Chosen = true);
+    bool Chosen = true,
+    /// <summary><c>model.options</c> <c>auth_type</c>, when the gateway sent one (<c>local</c>, <c>api_key</c>, …).</summary>
+    string? AuthType = null,
+    /// <summary>
+    /// Runs without a cloud API key: <c>auth_type</c> <c>local</c>, or a llamacpp / Ollama / LM Studio / custom
+    /// endpoint. <see cref="ModelCatalog.Usable"/> keeps every model of one, even with no price and even when
+    /// the gateway's <c>explicit_only</c> list left it out.
+    /// </summary>
+    bool Keyless = false);
 
 /// <summary>Catalog from model.options. Available ≠ entitlement.</summary>
 public sealed record ModelCatalog(
@@ -46,13 +54,19 @@ public sealed record ModelCatalog(
         return null;
     }
 
-    /// <summary>Chosen providers: all models; others: free only. Catalog is not entitlement.</summary>
+    /// <summary>
+    /// What the picker offers: every model of a provider the user set up (<see cref="ModelProvider.Chosen"/>, or a
+    /// <see cref="ModelProvider.Keyless"/> local or custom endpoint), and only the free ones of the rest. A keyless
+    /// provider is marked chosen so the picker lists it under its own name. A provider left with nothing is dropped.
+    /// Catalog is not entitlement.
+    /// </summary>
     public ModelCatalog Usable()
     {
         var list = new List<ModelProvider>();
         foreach (var p in Providers)
         {
             if (p.Chosen) { list.Add(p); continue; }
+            if (p.Keyless) { list.Add(p with { Chosen = true }); continue; }
             var free = p.Models.Where(m => m.IsFree).ToList();
             if (free.Count > 0) list.Add(p with { Models = free });
         }
@@ -68,6 +82,11 @@ public sealed record ModelCatalog(
             }).ToList()
         };
 
+    /// <summary>
+    /// Lenient: a provider with no models is dropped, and so is a cloud provider that still needs a key
+    /// (<c>authenticated</c> false, and not <see cref="IsKeylessProvider"/>). A local or no-key custom provider
+    /// is kept even then: it has nothing to authenticate. Unknown fields are ignored.
+    /// </summary>
     public static ModelCatalog Parse(JsonObject? result)
     {
         var providers = new List<ModelProvider>();
@@ -76,9 +95,14 @@ public sealed record ModelCatalog(
             foreach (var node in arr)
             {
                 if (node is not JsonObject row) continue;
-                if (row["authenticated"]?.GetValue<bool>() == false) continue;
-                var slug = row["slug"]?.GetValue<string>();
+                var slug = Text(row, "slug");
                 if (string.IsNullOrWhiteSpace(slug)) continue;
+                var name = Text(row, "name") ?? slug;
+                var authType = Text(row, "auth_type");
+                var keyless = IsKeylessProvider(slug, name, authType, Text(row, "key_env"), Flag(row, "is_user_defined") == true);
+                // A cloud row with no credentials can't be selected. A local runtime reports the same flag
+                // because it has no API key, and it still has models.
+                if (Flag(row, "authenticated") == false && !keyless) continue;
                 var capabilities = row["capabilities"] as JsonObject;
                 var pricing = row["pricing"] as JsonObject;
                 var unavailable = Strings(row, "unavailable_models").ToHashSet(StringComparer.Ordinal);
@@ -96,13 +120,16 @@ public sealed record ModelCatalog(
                 }
                 if (models.Count == 0) continue;
                 var featured = Strings(row, "featured_models").Where(f => models.Any(m => m.Id == f)).ToList();
+                var warning = Text(row, "warning");
                 providers.Add(new ModelProvider(
                     slug,
-                    row["name"]?.GetValue<string>() is { Length: > 0 } n ? n : slug,
+                    name,
                     models,
                     featured,
-                    row["warning"]?.GetValue<string>(),
-                    Chosen: true));
+                    warning,
+                    Chosen: true,
+                    AuthType: authType,
+                    Keyless: keyless));
             }
         }
         return new ModelCatalog(
@@ -112,6 +139,50 @@ public sealed record ModelCatalog(
     }
 
     private static string? BlankToNull(string? s) => string.IsNullOrWhiteSpace(s) ? null : s;
+
+    private static string? Text(JsonObject row, string key)
+    {
+        if (row[key] is not JsonValue v || !v.TryGetValue<string>(out var s)) return null;
+        return string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+    }
+
+    private static bool? Flag(JsonObject row, string key) =>
+        row[key] is JsonValue v && v.TryGetValue(out bool b) ? b : null;
+
+    /// <summary>
+    /// Slugs that serve a machine on the user's network, or a custom OpenAI-compatible endpoint, and do not need
+    /// a cloud key. <c>ollama-cloud</c> is not one of these. Hermes aliases llamacpp / ollama / lmstudio onto
+    /// <c>custom</c>; a saved endpoint is <c>custom:&lt;name&gt;</c>.
+    /// </summary>
+    private static readonly HashSet<string> KeylessSlugs = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "llamacpp", "llama.cpp", "llama-cpp", "local",
+        "ollama", "lmstudio", "lm-studio", "lm_studio", "custom",
+    };
+
+    /// <summary>Display names the local runtimes use when the slug was normalized away (<c>Local</c> is the llamacpp row).</summary>
+    private static readonly HashSet<string> KeylessNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "local", "ollama", "lm studio", "custom endpoint",
+    };
+
+    /// <summary>
+    /// A provider the chat picker can offer with no API key. <c>auth_type</c> <c>local</c> is the llamacpp row.
+    /// Ollama, LM Studio and a user-added custom endpoint are the same kind of row: models, often no price, and
+    /// <c>authenticated: false</c> because there is nothing to authenticate. A user-defined row with no key env is too.
+    /// A cloud provider that names a key (<c>auth_type</c> <c>api_key</c> and a <c>key_env</c>) is not.
+    /// </summary>
+    public static bool IsKeylessProvider(string slug, string name, string? authType, string? keyEnv, bool userDefined)
+    {
+        if (string.Equals(authType?.Trim(), "local", StringComparison.OrdinalIgnoreCase)) return true;
+        var id = slug.Trim();
+        if (KeylessSlugs.Contains(id) || id.StartsWith("custom:", StringComparison.OrdinalIgnoreCase)) return true;
+        if (KeylessNames.Contains(name.Trim())) return true;
+        if (!userDefined) return false;
+        var type = authType?.Trim();
+        return string.IsNullOrEmpty(type)
+            || (string.Equals(type, "api_key", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(keyEnv));
+    }
 
     private static IEnumerable<string> Strings(JsonObject row, string key)
     {
