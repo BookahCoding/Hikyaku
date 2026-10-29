@@ -5,7 +5,11 @@ using System.Text.RegularExpressions;
 
 namespace Hikyaku.Core;
 
-/// <summary>Bot Mode roster row — BookahHermes Bots.kt / profiles.list.</summary>
+/// <summary>
+/// One <c>profiles.list</c> row — BookahHermes Bots.kt. It is a bot the user opted into only when
+/// <see cref="HasBotIdentity"/> is set. Every other row, including the default profile and a profile
+/// the user merely chats with, is an ordinary profile: opening it must not bind or start a Bot Chat.
+/// </summary>
 public sealed record Bot(
     string Name,
     bool IsDefault = false,
@@ -26,6 +30,20 @@ public sealed record Bot(
         UiMeta?["hermes-bots"] as JsonObject ?? new JsonObject();
 
     public BotMeta Meta => BotMeta.Of(UiMeta?["hermes-bots"]);
+
+    /// <summary>
+    /// The user opted this profile into Bot Mode. Desktop writes that as a creation time, or a title or look
+    /// of their own (<c>shape</c>, <c>color</c>, <c>custom</c>, <c>imageKind</c>). A display name is the
+    /// profile's own name, and hidden or pinned only moves the roster row: neither is an identity, and
+    /// neither makes a Bot Chat.
+    /// </summary>
+    public bool HasBotIdentity =>
+        Meta.CreatedMs is not null
+        || Meta.Custom
+        || !string.IsNullOrWhiteSpace(Meta.Title)
+        || !string.IsNullOrWhiteSpace(Meta.Shape)
+        || !string.IsNullOrWhiteSpace(Meta.Color)
+        || !string.IsNullOrWhiteSpace(Meta.ImageKind);
 
     public string Label =>
         Meta.Title
@@ -72,6 +90,19 @@ public sealed record BotSession(
 }
 
 public sealed record BotRoster(IReadOnlyList<Bot> Bots, bool TeammateProtocol);
+
+/// <summary>
+/// How a <c>profiles.list</c> row opens. Only a profile the user made a bot binds to the permanent session
+/// titled "Bot Chat". Any other row opens as an ordinary chat, and that session is not opened, started,
+/// retitled, unhidden, or archived.
+/// </summary>
+public readonly record struct RosterOpen(bool PermanentBotChat, string? StoredSessionId)
+{
+    public static RosterOpen For(Bot bot) =>
+        bot.HasBotIdentity
+            ? new RosterOpen(true, bot.CanonicalSession?.OpenId)
+            : new RosterOpen(false, null);
+}
 
 public sealed record BotMeta(
     string? Title = null,

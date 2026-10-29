@@ -37,7 +37,8 @@ public class Checkpoint8BotChatsTests
     }
 
     private static Bot Bot(string name, BotSession? chat = null) =>
-        new(name, CanonicalSession: chat);
+        new(name, CanonicalSession: chat,
+            UiMeta: JsonNode.Parse("""{"hermes-bots":{"created":1}}""")!.AsObject());
 
     [Fact]
     public async Task Opens_The_Live_End_Of_An_Existing_Chat()
@@ -98,6 +99,76 @@ public class Checkpoint8BotChatsTests
         Assert.Equal("new-1", await first);
         Assert.Equal("new-1", await second);
         Assert.Equal(1, backend.Starts);
+    }
+
+    [Fact]
+    public void A_profile_is_a_bot_only_with_an_explicit_identity()
+    {
+        static Bot Profile(string meta) => Assert.Single(BotRosterParser.Parse(JsonNode.Parse(
+            "{\"profiles\":[{\"name\":\"froebel\",\"display_name\":\"Froebel\",\"ui_meta\":{\"hermes-bots\":" + meta + "}}]}")!).Bots);
+
+        var shisha = Assert.Single(BotRosterParser.Parse(JsonNode.Parse(
+            """{"profiles":[{"name":"default","is_default":true,"display_name":"Shisha","canonical_session":{"id":"bc1","title":"Bot Chat"}}]}""")).Bots);
+        Assert.False(shisha.HasBotIdentity);
+        Assert.Equal(new RosterOpen(false, null), RosterOpen.For(shisha));
+
+        var canonicalOnly = Assert.Single(BotRosterParser.Parse(JsonNode.Parse(
+            """{"profiles":[{"name":"froebel","display_name":"Froebel","canonical_session":{"id":"bot-chat","resolved_id":"bot-chat","title":"Bot Chat"}}]}""")).Bots);
+        Assert.False(canonicalOnly.HasBotIdentity);
+        Assert.Null(RosterOpen.For(canonicalOnly).StoredSessionId);
+
+        Assert.False(Profile("""{"hidden":true}""").HasBotIdentity);
+        Assert.False(Profile("""{"pinned":true}""").HasBotIdentity);
+        Assert.True(Profile("""{"created":1791170000000}""").HasBotIdentity);
+        Assert.True(Profile("""{"title":"Tutor"}""").HasBotIdentity);
+        Assert.True(Profile("""{"custom":true}""").HasBotIdentity);
+        Assert.True(Profile("""{"shape":"squircle"}""").HasBotIdentity);
+        Assert.True(Profile("""{"color":"#8b5cf6"}""").HasBotIdentity);
+        Assert.True(Profile("""{"imageKind":"photo"}""").HasBotIdentity);
+
+        Assert.True(Profile("""{"created":1,"title":"Scribe"}""").HasBotIdentity);
+        var made = Assert.Single(BotRosterParser.Parse(JsonNode.Parse(
+            """{"profiles":[{"name":"scribe","canonical_session":{"id":"b1","resolved_id":"b1-tip","title":"Bot Chat"},"ui_meta":{"hermes-bots":{"created":1,"title":"Scribe"}}}]}""")).Bots);
+        Assert.Equal(new RosterOpen(true, "b1-tip"), RosterOpen.For(made));
+    }
+
+    [Fact]
+    public async Task Opening_a_plain_profile_does_not_mint_or_bind_its_bot_chat()
+    {
+        var backend = new FakeBackend();
+        var plain = new Bot(
+            "froebel",
+            DisplayName: "Froebel",
+            CanonicalSession: new BotSession(Id: "bot-chat", ResolvedId: "bot-chat", Title: BotsApi.BotChatTitle));
+        Assert.False(RosterOpen.For(plain).PermanentBotChat);
+        Assert.Null(RosterOpen.For(plain).StoredSessionId);
+
+        await Assert.ThrowsAsync<ProfileIsNotABotException>(() => new BotChats(backend).OpenAsync(plain));
+        Assert.Equal(0, backend.Starts);
+        Assert.False(backend.Chats.ContainsKey("froebel"));
+
+        // No canonical chat yet: opening must still refuse, and must not session.create one.
+        var fresh = new Bot("plain", DisplayName: "Plain");
+        await Assert.ThrowsAsync<ProfileIsNotABotException>(() => new BotChats(backend).OpenAsync(fresh));
+        Assert.Equal(0, backend.Starts);
+        Assert.False(backend.Chats.ContainsKey("plain"));
+
+        var shisha = new Bot(
+            "default",
+            IsDefault: true,
+            DisplayName: "Shisha",
+            CanonicalSession: new BotSession(Id: "bc1", Title: BotsApi.BotChatTitle),
+            UiMeta: JsonNode.Parse("""{"hermes-bots":{"hidden":true,"pinned":true}}""")!.AsObject());
+        await Assert.ThrowsAsync<ProfileIsNotABotException>(() => new BotChats(backend).OpenAsync(shisha));
+        Assert.Equal(0, backend.Starts);
+
+        var made = new Bot(
+            "scribe",
+            CanonicalSession: new BotSession(Id: "b1", ResolvedId: "b1-tip", Title: BotsApi.BotChatTitle),
+            UiMeta: JsonNode.Parse("""{"hermes-bots":{"created":1,"title":"Scribe"}}""")!.AsObject());
+        backend.Chats["scribe"] = made.CanonicalSession;
+        Assert.Equal("b1-tip", await new BotChats(backend).OpenAsync(made));
+        Assert.Equal(0, backend.Starts);
     }
 }
 
