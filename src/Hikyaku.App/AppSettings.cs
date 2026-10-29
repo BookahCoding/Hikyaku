@@ -18,7 +18,7 @@ public sealed class AppSettings
     public Dictionary<string, string> ProfileNames { get; set; } = new();
     /// <summary>Legacy: Ukiyo-e light when true. Prefer <see cref="Appearance"/>.</summary>
     public bool LightTheme { get; set; }
-    /// <summary>Hokusai theme family id (washi-ink, great-wave, red-fuji, pine-mist).</summary>
+    /// <summary>Hokusai theme family id (see ThemeCatalog).</summary>
     public string ThemeId { get; set; } = "washi-ink";
     /// <summary>light | dark | system</summary>
     public string Appearance { get; set; } = "system";
