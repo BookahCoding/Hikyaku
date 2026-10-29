@@ -5,6 +5,8 @@ are `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- A profile is a bot only when Bot Mode was set up for it (a creation time, or a title or look of its own). Opening Shisha, or another profile that only has a display name, from the roster starts an ordinary chat. The existing chat titled "Bot Chat" is left as it is.
+
 ## 0.7.1 — Simpler chats and two new themes
 
 - In Simple view, with one profile, the empty message box says "Write a message…" instead of "Message Hermes…". With more than one profile it still names the one you are talking to.

@@ -9,6 +9,13 @@ public interface IBotChatBackend
 
 public sealed class BotChatTakenException() : Exception("The Bot Chat was just started elsewhere.");
 
+/// <summary>
+/// The profile was not made a bot, so its permanent chat must not be opened or started.
+/// The session titled "Bot Chat", when one already exists, is left unchanged.
+/// </summary>
+public sealed class ProfileIsNotABotException(string profile)
+    : Exception($"'{profile}' is a profile, not a bot. Its Bot Chat was not opened or changed.");
+
 public sealed class BotChatUnavailableException(string message, Exception? cause = null)
     : Exception(message, cause);
 
@@ -41,6 +48,11 @@ public sealed class BotChats(IBotChatBackend backend)
 
     public async Task<string> OpenAsync(Bot bot, CancellationToken ct = default)
     {
+        // A display name, a hidden or pinned flag, or a canonical "Bot Chat" row is not an opt-in.
+        // Refuse before any lookup or session.create, so that session is never started or retitled.
+        if (!bot.HasBotIdentity)
+            throw new ProfileIsNotABotException(bot.Name);
+
         if (bot.CanonicalSession?.OpenId is not null)
         {
             lock (_gate) _known.Add(bot.Name);

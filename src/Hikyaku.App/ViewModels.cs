@@ -243,8 +243,8 @@ public sealed class BotRowVM : Observable
     public bool Unread { get; }
     public string Activity { get; }
     public string Meta => Activity + (Unread ? " · unread" : "");
-    public bool IsBotChat => Bot.CanonicalSession?.Title == BotsApi.BotChatTitle
-        || string.Equals(Bot.CanonicalSession?.Title, BotsApi.BotChatTitle, StringComparison.Ordinal);
+    public bool IsBotChat => Bot.HasBotIdentity
+        && string.Equals(Bot.CanonicalSession?.Title, BotsApi.BotChatTitle, StringComparison.Ordinal);
 }
 
 public sealed class RoomRowVM : Observable
@@ -1713,8 +1713,10 @@ public sealed partial class MainViewModel : Observable
             foreach (var bot in roster.Bots)
             {
                 var preview = BotRosterParser.PreviewLine(bot);
-                var unread = bot.CanonicalSession is { MessageCount: > 0 };
-                var activity = bot.CanonicalSession is not null ? "Bot Chat" : "no Bot Chat yet";
+                var unread = bot.HasBotIdentity && bot.CanonicalSession is { MessageCount: > 0 };
+                var activity = bot.HasBotIdentity
+                    ? (bot.CanonicalSession is not null ? "Bot Chat" : "no Bot Chat yet")
+                    : "Profile";
                 BotRows.Add(new BotRowVM(bot, preview, unread, activity));
             }
             var rooms = await svc.LoadRoomsAsync().ConfigureAwait(true);
@@ -1750,8 +1752,17 @@ public sealed partial class MainViewModel : Observable
             return;
         }
 
+        // A profile the user did not make a bot opens as an ordinary chat. The permanent session titled
+        // "Bot Chat" is not opened, started, retitled, unhidden, or archived. Hiding that session is not a fix.
+        var plan = RosterOpen.For(row.Bot);
+        if (!plan.PermanentBotChat)
+        {
+            OpenOrdinaryProfileChat(profile);
+            return;
+        }
+
         var svc = _bots();
-        string? openId = row.Bot.CanonicalSession?.OpenId;
+        string? openId = plan.StoredSessionId;
         try
         {
             if (svc is not null)
@@ -1766,6 +1777,11 @@ public sealed partial class MainViewModel : Observable
                 else if (openId is null)
                     openId = await new BotChats(new FixtureBotBackend(row.Bot)).OpenAsync(row.Bot).ConfigureAwait(true);
             }
+        }
+        catch (ProfileIsNotABotException)
+        {
+            OpenOrdinaryProfileChat(profile);
+            return;
         }
         catch (BotChatUnavailableException ex)
         {
@@ -1802,6 +1818,16 @@ public sealed partial class MainViewModel : Observable
                 System.Text.Json.Nodes.JsonNode.Parse("""{"subagent_id":"demo-s1","goal":"Synthetic subagent (fixture)","status":"running"}""")!.AsObject());
             RefreshSubagentRows();
         }
+    }
+
+    /// <summary>
+    /// A new chat for a profile that is not a bot. Nothing is read from or written to the session titled "Bot Chat".
+    /// </summary>
+    private void OpenOrdinaryProfileChat(ProfileKey profile)
+    {
+        if (_selection.Selected.Contains(profile) && profile != ActiveProfileKey())
+            SwitchProfile(profile);
+        NewChat();
     }
 
     private void OpenRoom(object? param)
