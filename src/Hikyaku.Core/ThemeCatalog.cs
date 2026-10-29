@@ -115,6 +115,32 @@ public static class ThemeCatalog
                 Bg: "#160F14", Surface: "#1F161C", SurfaceSidebar: "#191117", SurfaceRaised: "#2A1E26", Surface3: "#362631", Well: "#1A1218",
                 Text: "#F7EEF1", Text2: "#E2D0D7", TextMuted: "#B097A2", Accent: "#E58AAE", OnAccent: "#160F14", Border: "#33F7EEF1",
                 Danger: "#F4848F", Success: "#7FC09A", Warning: "#E2BC62", MarkVermilion: "#E07082", MarkPaper: "#F7EEF1")),
+
+        // "Kirifuri Waterfall at Kurokami Mountain in Shimotsuke" (A Tour of the Waterfalls, c. 1832):
+        // a white cascade on saturated teal water, not the pale sky of Great Wave or the sage paper of Pine & Mist.
+        new("kirifuri", "Kirifuri Falls",
+            "Hokusai-inspired foam white, deep waterfall teal, and moss (A Tour of the Waterfalls: Kirifuri Waterfall at Kurokami Mountain).",
+            Light: new ThemeSurfaces(
+                Bg: "#B9E0D8", Surface: "#E7F6F2", SurfaceSidebar: "#C9E6E0", SurfaceRaised: "#D7EFEA", Surface3: "#A9D4CC", Well: "#D3EBE6",
+                Text: "#06211E", Text2: "#143632", TextMuted: "#2A4E48", Accent: "#084F48", OnAccent: "#FFFFFF", Border: "#1A06211E",
+                Danger: "#7A1C2C", Success: "#0E5A34", Warning: "#6A4A06", MarkVermilion: "#B8432A", MarkPaper: "#E7F6F2"),
+            Dark: new ThemeSurfaces(
+                Bg: "#0C3C38", Surface: "#124842", SurfaceSidebar: "#0E403C", SurfaceRaised: "#16564E", Surface3: "#1A5C54", Well: "#103E3A",
+                Text: "#F3FFFC", Text2: "#D4F3EC", TextMuted: "#A8DDD2", Accent: "#D8FFF6", OnAccent: "#0C3C38", Border: "#33F3FFFC",
+                Danger: "#FFC8D0", Success: "#9EE8C0", Warning: "#FFE08A", MarkVermilion: "#F09A78", MarkPaper: "#F3FFFC")),
+
+        // "Thunderstorm Beneath the Summit" (Thirty-six Views of Mount Fuji): clear blue sky above a black storm, lightning in pale gold.
+        // The sky is a real blue, not Great Wave's pale wash, and the bolt is not Chrysanthemums' flower gold.
+        new("thunderstorm", "Thunderstorm",
+            "Hokusai-inspired clear sky, storm indigo, and lightning (Thirty-six Views: Thunderstorm Beneath the Summit).",
+            Light: new ThemeSurfaces(
+                Bg: "#A8C6F2", Surface: "#E6EEFC", SurfaceSidebar: "#C5D7F6", SurfaceRaised: "#D6E4FA", Surface3: "#A9C2EC", Well: "#D0E0F8",
+                Text: "#10182C", Text2: "#1E3050", TextMuted: "#2C4068", Accent: "#1C2748", OnAccent: "#FFFFFF", Border: "#1A10182C",
+                Danger: "#7A1428", Success: "#0C5834", Warning: "#5E4406", MarkVermilion: "#8E3A28", MarkPaper: "#E6EEFC"),
+            Dark: new ThemeSurfaces(
+                Bg: "#070A14", Surface: "#12182A", SurfaceSidebar: "#0E1422", SurfaceRaised: "#1A2240", Surface3: "#243058", Well: "#101628",
+                Text: "#F7F9FF", Text2: "#D5DBF0", TextMuted: "#B4BCDC", Accent: "#FFF3C4", OnAccent: "#070A14", Border: "#33F7F9FF",
+                Danger: "#FFB4BE", Success: "#A4E8C4", Warning: "#FFE08A", MarkVermilion: "#E89878", MarkPaper: "#F7F9FF")),
     ];
 
     public static ThemeDefinition Get(string id) =>

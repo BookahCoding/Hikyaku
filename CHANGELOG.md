@@ -6,6 +6,8 @@ are `vMAJOR.MINOR.PATCH`.
 ## Unreleased
 
 - In Simple view, while a reply is running, the chat box keeps Send and Stop and hides Queue and Stop & send. The send button says what it will do in everyday words.
+- An empty chat offers a few ways to start (Help me write, Explain something, Make a plan, Check my writing). Choosing one fills the message box. Nothing is sent until Send.
+- Two more themes from Hokusai prints: Kirifuri Falls (foam and waterfall teal) and Thunderstorm (clear sky, storm indigo, and lightning).
 
 ## 0.7.0 — Inbox results, and folders on this PC
 

@@ -92,5 +92,7 @@ Shipped as approximate token families (not measured artworks), each with light +
 | `pine-mist` | Pine & Mist | Moss / slate / paper |
 | `chrysanthemum` | Chrysanthemums | Golden blooms / leaf green / pale paper (Stage 43; Hokusai's Large Flowers series, "Chrysanthemums and Horsefly") |
 | `peony` | Peonies | Rose peonies / deep leaves / blush paper (Stage 43; Large Flowers series, "Peonies and Butterfly") |
+| `kirifuri` | Kirifuri Falls | Foam white / deep waterfall teal / moss (A Tour of the Waterfalls: Kirifuri Waterfall at Kurokami Mountain). Saturated teal paper, not Great Wave's pale sky or Pine & Mist's sage. |
+| `thunderstorm` | Thunderstorm | Clear blue sky / storm indigo / lightning gold (Thirty-six Views: Thunderstorm Beneath the Summit). The sky is a real blue, and the bolt is pale gold, not Chrysanthemums' flower gold. |
 
 Catalog + contrast ratios (≥4.5 text/bg) live in `ThemeCatalog` (Core); WPF applies via `ThemeService`. Synthetic UI acceptance captures every family × light/dark.
