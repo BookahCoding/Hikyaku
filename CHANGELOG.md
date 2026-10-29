@@ -5,6 +5,8 @@ are `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- In Simple view, while a reply is running, the chat box keeps Send and Stop and hides Queue and Stop & send. The send button says what it will do in everyday words.
+
 ## 0.7.0 — Inbox results, and folders on this PC
 
 Plain-text release notes: [docs/release-notes/v0.7.0.txt](docs/release-notes/v0.7.0.txt). Design:

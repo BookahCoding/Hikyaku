@@ -36,7 +36,7 @@ public class Checkpoint36ExperienceTests
             ExperienceFeature.Bots, ExperienceFeature.Rooms, ExperienceFeature.Capabilities, ExperienceFeature.Journey, ExperienceFeature.Insights,
             ExperienceFeature.Projects, ExperienceFeature.InboxSetup, ExperienceFeature.ConfigEditor, ExperienceFeature.McpEdit, ExperienceFeature.Scheduled, ExperienceFeature.Terminal,   // Artifacts: both views since Stage 41
             ExperienceFeature.ModelChip, ExperienceFeature.BranchChat, ExperienceFeature.ReasoningChip, ExperienceFeature.FastChip,
-            ExperienceFeature.ToolDetails, ExperienceFeature.SessionFilters, ExperienceFeature.ReasoningDetails, ExperienceFeature.AgentPlan, ExperienceFeature.AgentNotices,
+            ExperienceFeature.ToolDetails, ExperienceFeature.SessionFilters, ExperienceFeature.MidTurnActions, ExperienceFeature.ReasoningDetails, ExperienceFeature.AgentPlan, ExperienceFeature.AgentNotices,
             ExperienceFeature.SettingsConnection, ExperienceFeature.SettingsAccess,
             ExperienceFeature.SettingsProfiles, ExperienceFeature.SettingsApprovals, ExperienceFeature.SettingsNotifications,
             ExperienceFeature.SettingsFolderKeyFiles
