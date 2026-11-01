@@ -24,6 +24,17 @@ The workflow stops with a clear error if that secret is missing or is not a PEM 
 
 The tag push starts the Release workflow. When it finishes, `https://github.com/BookahCoding/Hikyaku/releases/latest` has `Hikyaku-Setup-X.Y.Z.exe`, `Hikyaku-win-x64.zip`, and `Hikyaku-win-x64.zip.sig`.
 
+## Release from the GitHub website
+
+After the version bump and notes are merged, open **Actions → Release → Run workflow**, select `main`, and enter the tag
+(for example `v0.7.4`). If the tag does not exist, the workflow checks that `Directory.Build.props` has the matching version
+and creates the tag at the exact commit selected for the run. The same run then packages, signs, verifies, and publishes it.
+The built-in Actions token creates the tag, so it does not start a second tag-push workflow.
+
+An existing tag is never moved: the workflow fetches and checks out that tag before packaging, even if the chosen branch has
+advanced. To rebuild a tag that already has a published release, resolve that existing release separately; this workflow
+does not overwrite published releases.
+
 ## Publish a tag that already exists
 
 `v0.7.2` was pushed before this workflow existed, so the tag push did not build it. After this workflow is on `main` and the secret is saved:
@@ -34,4 +45,4 @@ The tag push starts the Release workflow. When it finishes, `https://github.com/
 
 Or, from a machine logged into GitHub: `gh workflow run release.yml --ref main -f tag=v0.7.2`.
 
-The run checks out the tag you typed, not the latest commit. `v0.7.2` already has `docs/release-notes/v0.7.2.txt`.
+For an existing tag, the run checks out the tag you typed, not the latest commit. `v0.7.2` already has `docs/release-notes/v0.7.2.txt`.

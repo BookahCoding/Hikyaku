@@ -94,5 +94,26 @@ Shipped as approximate token families (not measured artworks), each with light +
 | `peony` | Peonies | Rose peonies / deep leaves / blush paper (Stage 43; Large Flowers series, "Peonies and Butterfly") |
 | `kirifuri` | Kirifuri Falls | Foam white / deep waterfall teal / moss (A Tour of the Waterfalls: Kirifuri Waterfall at Kurokami Mountain). Saturated teal paper, not Great Wave's pale sky or Pine & Mist's sage. |
 | `thunderstorm` | Thunderstorm | Clear blue sky / storm indigo / lightning gold (Thirty-six Views: Thunderstorm Beneath the Summit). The sky is a real blue, and the bolt is pale gold, not Chrysanthemums' flower gold. |
+| `irises` | Irises | Iris violet / lavender paper / aubergine ink (Hokusai's *Irises and grasshopper*). The light ground is lavender, and both accents are violet rather than Peonies' rose or Great Wave's blue. |
 
 Catalog + contrast ratios (≥4.5 text/bg) live in `ThemeCatalog` (Core); WPF applies via `ThemeService`. Synthetic UI acceptance captures every family × light/dark.
+
+## Irises — ninth family
+
+Inspiration: Hokusai, *Irises and grasshopper*, c. 1833–34, a colour woodblock print in the ukiyo-e tradition;
+[Fitzwilliam Museum, P.191-1946](https://data.fitzmuseum.cam.ac.uk/id/object/182600).
+These are original, interpretive UI colours, not measured artwork colours. No museum image is bundled or fetched by the app.
+
+| Role | Light | Dark |
+|---|---|---|
+| Background | `#DACCEB` | `#251730` |
+| Surface | `#F5EFFA` | `#2C1D38` |
+| Ink | `#24152F` | `#F6EFFB` |
+| Muted ink | `#51405E` | `#C4ACD4` |
+| Accent | `#5D347F` | `#C0A0F0` |
+| On accent | `#FFFFFF` | `#21142C` |
+
+The gallery, saved theme id, and synthetic UI acceptance loop use the catalog automatically. No new settings control or gateway
+call is needed. Tests require at least 4.5:1 for primary, secondary, muted, accent and status text on all six surfaces, and
+for button labels on their accent fill. Separation tests compare the light background and both accents to every earlier family;
+RGB distances are a regression guard, not a claim of perceptual uniformity or a substitute for Windows visual acceptance.

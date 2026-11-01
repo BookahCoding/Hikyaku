@@ -5,6 +5,10 @@ are `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+## 0.7.4 — Irises theme
+
+- Irises: a ninth Hokusai-inspired theme, with iris violet on lavender paper in Light and pale violet on aubergine in Dark. Choose it in Settings → Appearance; System follows the Windows appearance when applied.
+
 ## 0.7.3 — Ordinary profile chats, local models, and automatic releases
 
 - A profile is a bot only when Bot Mode was set up for it (a creation time, or a title or look of its own). Opening Shisha, or another profile that only has a display name, from the roster starts an ordinary chat. The existing chat titled "Bot Chat" is left as it is.
