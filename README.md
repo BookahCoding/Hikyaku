@@ -27,7 +27,7 @@ edges with other servers and please report them (see below); fixes arrive as in-
 - **Advanced tools** for whoever looks after the gateway: scheduled jobs, skills, toolsets and MCP servers, the skills hub,
   a settings editor and `config.yaml` editor, insights, hosted rooms, artifacts, the memory graph (Journey), and local
   projects with folder sharing, Git checkpoints and a local terminal.
-- Eight Hokusai-inspired themes with light and dark variants, larger text sizes, keyboard shortcuts (Ctrl+K palette,
+- Nine Hokusai-inspired themes with light and dark variants, larger text sizes, keyboard shortcuts (Ctrl+K palette,
   Ctrl+N, Ctrl+F and more; Ctrl+/ lists them) and respect for Windows reduced-motion and high-contrast settings.
 
 ## Simple and Advanced
