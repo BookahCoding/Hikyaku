@@ -5,6 +5,8 @@ are `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+## 0.7.4 — Irises theme
+
 - Irises: a ninth Hokusai-inspired theme, with iris violet on lavender paper in Light and pale violet on aubergine in Dark. Choose it in Settings → Appearance; System follows the Windows appearance when applied.
 
 ## 0.7.3 — Ordinary profile chats, local models, and automatic releases
