@@ -47,11 +47,41 @@ jobs:
           Add-Content -Path $env:GITHUB_OUTPUT -Value "tag=$tag" -Encoding utf8NoBOM
           Write-Host "Release tag: $tag"
 
-      - name: Checkout the tag
+      - name: Checkout the release source
         uses: actions/checkout@v4
         with:
-          ref: ${{ steps.tag.outputs.tag }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || steps.tag.outputs.tag }}
           persist-credentials: false
+
+      - name: Resolve a manually requested tag
+        if: github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          $tag = $env:RELEASE_TAG
+          $refsJson = gh api "repos/$env:GH_REPO/git/matching-refs/tags/$tag"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $refs = @($refsJson | ConvertFrom-Json)
+          $exists = @($refs | Where-Object { $_.ref -ceq "refs/tags/$tag" }).Count -gt 0
+          if ($exists) {
+            # Rebuilding an existing tag must use that tag, even if the chosen branch has advanced.
+            git fetch --depth=1 origin "refs/tags/$tag"
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            git checkout --detach FETCH_HEAD
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          } else {
+            # A new tag names the exact workflow commit, only when its version agrees.
+            $props = [xml](Get-Content -Raw 'Directory.Build.props')
+            if ([string]$props.Project.PropertyGroup.Version -cne $env:RELEASE_VERSION) {
+              throw 'The source version does not match the requested release tag. No tag was created.'
+            }
+            $sha = git rev-parse HEAD
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            gh api --method POST "repos/$env:GH_REPO/git/refs" -f "ref=refs/tags/$tag" -f "sha=$sha"
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          }
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
