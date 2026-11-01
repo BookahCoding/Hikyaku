@@ -141,6 +141,19 @@ public static class ThemeCatalog
                 Bg: "#070A14", Surface: "#12182A", SurfaceSidebar: "#0E1422", SurfaceRaised: "#1A2240", Surface3: "#243058", Well: "#101628",
                 Text: "#F7F9FF", Text2: "#D5DBF0", TextMuted: "#B4BCDC", Accent: "#FFF3C4", OnAccent: "#070A14", Border: "#33F7F9FF",
                 Danger: "#FFB4BE", Success: "#A4E8C4", Warning: "#FFE08A", MarkVermilion: "#E89878", MarkPaper: "#F7F9FF")),
+
+        // "Irises and grasshopper" (c. 1833–34), Fitzwilliam Museum P.191-1946.
+        // An interpretive violet/lavender family: original UI tokens, not sampled colours or a reproduced image.
+        new("irises", "Irises",
+            "Hokusai-inspired iris violet, lavender paper, and aubergine ink (Irises and grasshopper).",
+            Light: new ThemeSurfaces(
+                Bg: "#DACCEB", Surface: "#F5EFFA", SurfaceSidebar: "#E2D5EF", SurfaceRaised: "#E9DFF3", Surface3: "#CDBBDD", Well: "#E5DAF0",
+                Text: "#24152F", Text2: "#382547", TextMuted: "#51405E", Accent: "#5D347F", OnAccent: "#FFFFFF", Border: "#2024152F",
+                Danger: "#7C203C", Success: "#245133", Warning: "#624506", MarkVermilion: "#A64632", MarkPaper: "#F5EFFA"),
+            Dark: new ThemeSurfaces(
+                Bg: "#251730", Surface: "#2C1D38", SurfaceSidebar: "#21142C", SurfaceRaised: "#352343", Surface3: "#402D4F", Well: "#281932",
+                Text: "#F6EFFB", Text2: "#E5D6EF", TextMuted: "#C4ACD4", Accent: "#C0A0F0", OnAccent: "#21142C", Border: "#40F6EFFB",
+                Danger: "#FFAFC3", Success: "#A5D9B0", Warning: "#EFD58D", MarkVermilion: "#EA9A7F", MarkPaper: "#F6EFFB")),
     ];
 
     public static ThemeDefinition Get(string id) =>
