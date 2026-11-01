@@ -11,11 +11,10 @@ namespace Hikyaku.Tests;
 public class Checkpoint7ThemeTests
 {
     [Fact]
-    public void ThemeCatalog_Exposes_Eight_Hokusai_Palettes()
+    public void ThemeCatalog_Exposes_Nine_Hokusai_Palettes()
     {
         var ids = ThemeCatalog.All.Select(t => t.Id).ToArray();
-        // Stage 43 added two from Hokusai's Large Flowers series. Kirifuri Falls and Thunderstorm Beneath the Summit followed.
-        Assert.Equal(new[] { "washi-ink", "great-wave", "red-fuji", "pine-mist", "chrysanthemum", "peony", "kirifuri", "thunderstorm" }, ids);
+        Assert.Equal(new[] { "washi-ink", "great-wave", "red-fuji", "pine-mist", "chrysanthemum", "peony", "kirifuri", "thunderstorm", "irises" }, ids);
         Assert.All(ThemeCatalog.All, t =>
         {
             Assert.False(string.IsNullOrWhiteSpace(t.DisplayName));
@@ -29,6 +28,36 @@ public class Checkpoint7ThemeTests
             Assert.True(ContrastRatio(t.Light.TextMuted, t.Light.Bg) >= 4.5, t.Id + " light muted");
             Assert.True(ContrastRatio(t.Dark.TextMuted, t.Dark.Bg) >= 4.5, t.Id + " dark muted");
         });
+    }
+
+    [Fact]
+    public void Irises_is_distinct_from_every_existing_family_in_both_modes()
+    {
+        var iris = ThemeCatalog.Get("irises");
+        Assert.Equal("irises", iris.Id); // An unknown id falls back to Washi & Ink.
+        Assert.Contains("Irises and grasshopper", iris.InspirationNote, StringComparison.OrdinalIgnoreCase);
+        foreach (var other in ThemeCatalog.All.Where(t => t.Id != iris.Id))
+        {
+            Assert.True(RgbDistance(iris.Light.Bg, other.Light.Bg) >= 36, "irises light bg vs " + other.Id);
+            Assert.True(RgbDistance(iris.Light.Accent, other.Light.Accent) >= 40, "irises light accent vs " + other.Id);
+            Assert.True(RgbDistance(iris.Dark.Accent, other.Dark.Accent) >= 55, "irises dark accent vs " + other.Id);
+        }
+    }
+
+    [Fact]
+    public void Irises_text_and_status_colours_stay_readable_on_all_its_surfaces()
+    {
+        var iris = ThemeCatalog.Get("irises");
+        Assert.Equal("irises", iris.Id);
+        foreach (var palette in new[] { iris.Light, iris.Dark })
+        {
+            var backgrounds = new[] { palette.Bg, palette.Surface, palette.SurfaceSidebar, palette.SurfaceRaised, palette.Surface3, palette.Well };
+            var foregrounds = new[] { palette.Text, palette.Text2, palette.TextMuted, palette.Accent, palette.Danger, palette.Success, palette.Warning };
+            foreach (var bg in backgrounds)
+                foreach (var fg in foregrounds)
+                    Assert.True(ContrastRatio(fg, bg) >= 4.5, fg + " on " + bg);
+            Assert.True(ContrastRatio(palette.OnAccent, palette.Accent) >= 4.5, "irises button label");
+        }
     }
 
     [Fact]
