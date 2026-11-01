@@ -1,0 +1,7 @@
+Hikyaku 0.7.4 - Irises theme
+
+- Adds Irises, a ninth Hokusai-inspired theme: iris violet on lavender paper in Light and pale violet on aubergine in Dark.
+- Choose Irises in Settings > Appearance. Both variants have tested text contrast and are distinct from all eight earlier themes.
+
+Update from Settings > Updates > Check for updates. Your settings and sign-in are kept.
+For a first installation, use Hikyaku-Setup-0.7.4.exe.
