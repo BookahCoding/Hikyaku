@@ -5,6 +5,8 @@ are `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+## 0.7.6 — Chat reliability
+
 - Chat drafts stay with their conversation when switching chats or profiles; delayed draft loading cannot overwrite newly typed text.
 - Sending and steering keep messages in the originating chat even when local storage or a gateway response is slow.
 - A canceled earlier-history load can be retried, and the last page respects the loaded-message limit.

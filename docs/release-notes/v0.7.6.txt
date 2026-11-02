@@ -1,0 +1,6 @@
+﻿Hikyaku 0.7.6
+
+- Drafts stay with their chat when switching conversations or profiles.
+- Slow disk restores preserve recovery drafts without overwriting new text.
+- Delayed sends and steer replies stay in their originating chat.
+- Canceled earlier-message loads can be retried and loaded-history limits are respected.
