@@ -154,6 +154,8 @@ public sealed class ConversationVM(ProfileKey profile, string title) : Observabl
     private string _reasoningLabel = "Reasoning";
     private string _fastLabel = "Normal";
     private PromptDeliveryState _delivery = PromptDeliveryState.Settled;
+    internal string DraftText { get; set; } = "";
+    internal long DraftVersion { get; set; }
     public ProfileKey Profile { get; } = profile;
     public string Title { get => _title; set => Set(ref _title, value); }
     /// <summary>Runtime session id for prompt.submit.</summary>
@@ -666,17 +668,26 @@ public sealed partial class MainViewModel : Observable
 
     public void RaiseIdentity() { Raise(nameof(IdentityStrip)); RaiseRiskNotice(); }
 
+    private bool _restoringDraft;
+    // Disk drafts are profile-scoped; seed only the first chat, then keep drafts with their conversation.
+    private readonly HashSet<ProfileKey> _seededDraftProfiles = new();
+
     public string InputText
     {
         get => _input;
         set
         {
             Set(ref _input, value);
+            if (!_restoringDraft && _selected is { } convo)
+            {
+                convo.DraftText = value;
+                convo.DraftVersion++;
+            }
             UpdateSlashSuggestions();
             RaiseComposerState();
             ((RelayCommand)SendCommand).Refresh();
             RefreshMidTurnCommands();
-            _ = PersistDraftAsync();
+            if (!_restoringDraft) _ = PersistDraftAsync();
         }
     }
 
@@ -688,19 +699,28 @@ public sealed partial class MainViewModel : Observable
             if (_selected == value) return;
             if (value is null && _refillingList) return;        // the list emptied for a refill, not a choice to close the chat
             if (_voiceChatRun is { } voice && !ReferenceEquals(voice.Conversation, value)) EndVoiceChat(null);   // a voice chat belongs to its chat
-            _ = PersistDraftAsync();
+            // Every edit is already saved. Saving an untouched empty chat here would erase the profile's recovery draft.
+            if (_selected is null && value is not null && _input.Length > 0 && value.DraftText.Length == 0)
+            {
+                value.DraftText = _input;
+                value.DraftVersion++;
+            }
             ExitEditMode(restoreDraft: false);
             SetRewindNotice("");
             ResetFind();
             _selected = value;
+            _restoringDraft = true;
+            try { InputText = value?.DraftText ?? ""; }
+            finally { _restoringDraft = false; }
             Messages.Clear();
             if (value is not null)
             {
                 foreach (var m in value.History) Messages.Add(m);
                 OfflineBanner = value.OfflineStale;
                 _attachQueue.Bind(value.Profile, value.SessionId);
-                _ = LoadDraftAsync(value.Profile);
+                _ = LoadDraftAsync(value);
                 RestoreUnsentQueue(value);
+                if (value.DraftText.Length > 0 || value.DraftVersion > 0) _ = PersistDraftAsync();
             }
             else OfflineBanner = false;
             ResetTail();
@@ -1121,15 +1141,25 @@ public sealed partial class MainViewModel : Observable
         catch { /* ignore draft IO */ }
     }
 
-    private async Task LoadDraftAsync(ProfileKey profile)
+    private async Task LoadDraftAsync(ConversationVM convo)
     {
         var drafts = _drafts();
-        if (drafts is null) return;
+        if (drafts is null || !_seededDraftProfiles.Add(convo.Profile)) return;
+        var version = convo.DraftVersion;
         try
         {
-            var d = await drafts.GetAsync(profile).ConfigureAwait(true);
-            if (!string.IsNullOrEmpty(d) && string.IsNullOrEmpty(_input))
-                InputText = d;
+            var d = await drafts.GetAsync(convo.Profile).ConfigureAwait(true);
+            if (convo.DraftVersion == version && convo.DraftText.Length == 0 && !string.IsNullOrEmpty(d))
+            {
+                // A slow read still belongs to the untouched origin, even if another chat is now open.
+                convo.DraftText = d;
+                if (SelectedConversation == convo)
+                {
+                    _restoringDraft = true;
+                    try { InputText = d; }
+                    finally { _restoringDraft = false; }
+                }
+            }
         }
         catch { /* ignore */ }
     }
@@ -1261,7 +1291,6 @@ public sealed partial class MainViewModel : Observable
         if (plan is null && textOverride is null)
         {
             InputText = "";
-            await PersistDraftAsync();
         }
 
         var user = new MessageVM("You", hadTerminalContext ? promptWithTerminal : text);
