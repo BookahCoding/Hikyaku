@@ -7,19 +7,21 @@
     and docs/THEME-REFERENCE.md. Layout remains ChatGPT-familiar (sidebar / conversation / composer).
   -->
 
-  <!-- Dark Ukiyo-e (default) -->
-  <Color x:Key="Color.Bg">#FF0E1424</Color>
-  <Color x:Key="Color.Surface">#FF151C30</Color>
-  <Color x:Key="Color.SurfaceSidebar">#FF111829</Color>
-  <Color x:Key="Color.SurfaceRaised">#FF1B2440</Color>
-  <Color x:Key="Color.Surface3">#FF232D4D</Color>
-  <Color x:Key="Color.Well">#FF111829</Color>
+  <!-- Neutral dark Washi & Ink (default); historical source colors are documented in THEME-REFERENCE. -->
+  <Color x:Key="Color.Bg">#FF000000</Color>
+  <Color x:Key="Color.Surface">#FF000000</Color>
+  <Color x:Key="Color.SurfaceSidebar">#FF080808</Color>
+  <Color x:Key="Color.SurfaceRaised">#FF171717</Color>
+  <Color x:Key="Color.Surface3">#FF202020</Color>
+  <Color x:Key="Color.Well">#FF0C0C0C</Color>
   <Color x:Key="Color.Text">#FFF4EDD9</Color>
   <Color x:Key="Color.Text2">#FFDCD3BC</Color>
   <Color x:Key="Color.TextMuted">#FFA8A08C</Color>
   <Color x:Key="Color.Text5">#FF7F7B6C</Color>
   <Color x:Key="Color.Accent">#FFE5927E</Color>
   <Color x:Key="Color.OnAccent">#FF0A0A0C</Color>
+  <Color x:Key="Color.Secondary">#FF73B6E3</Color>
+  <Color x:Key="Color.OnSecondary">#FF080808</Color>
   <Color x:Key="Color.Border">#33F4EDD9</Color>
   <Color x:Key="Color.Danger">#FFF4739B</Color>
   <Color x:Key="Color.Success">#FF7DBE8A</Color>
@@ -27,13 +29,13 @@
   <Color x:Key="Color.MarkVermilion">#FFA63F2D</Color>
   <Color x:Key="Color.MarkPaper">#FFF4EDD9</Color>
 
-  <!-- Light Ukiyo-e (swapped via ThemeService into the same brush keys) -->
-  <Color x:Key="Color.Light.Bg">#FFF4EDD9</Color>
-  <Color x:Key="Color.Light.Surface">#FFFAF5E3</Color>
-  <Color x:Key="Color.Light.SurfaceSidebar">#FFF0E8D3</Color>
-  <Color x:Key="Color.Light.SurfaceRaised">#FFEFE6CF</Color>
-  <Color x:Key="Color.Light.Surface3">#FFE6DCC2</Color>
-  <Color x:Key="Color.Light.Well">#FFF0E8D3</Color>
+  <!-- Neutral light surfaces (ThemeService applies the saved family into the same brush keys). -->
+  <Color x:Key="Color.Light.Bg">#FFF7F7F5</Color>
+  <Color x:Key="Color.Light.Surface">#FFFAFAF8</Color>
+  <Color x:Key="Color.Light.SurfaceSidebar">#FFF0F0EE</Color>
+  <Color x:Key="Color.Light.SurfaceRaised">#FFF3F3F1</Color>
+  <Color x:Key="Color.Light.Surface3">#FFEDEDEB</Color>
+  <Color x:Key="Color.Light.Well">#FFF0F0EE</Color>
   <Color x:Key="Color.Light.Text">#FF2B2822</Color>
   <Color x:Key="Color.Light.Text2">#FF403B31</Color>
   <Color x:Key="Color.Light.TextMuted">#FF6A5F50</Color>
@@ -56,8 +58,8 @@
   <SolidColorBrush x:Key="Brush.TextMuted" Color="{StaticResource Color.TextMuted}"/>
   <SolidColorBrush x:Key="Brush.Accent" Color="{StaticResource Color.Accent}"/>
   <SolidColorBrush x:Key="Brush.OnAccent" Color="{StaticResource Color.OnAccent}"/>
-  <SolidColorBrush x:Key="Brush.Secondary" Color="{StaticResource Color.Accent}"/>
-  <SolidColorBrush x:Key="Brush.OnSecondary" Color="{StaticResource Color.OnAccent}"/>
+  <SolidColorBrush x:Key="Brush.Secondary" Color="{StaticResource Color.Secondary}"/>
+  <SolidColorBrush x:Key="Brush.OnSecondary" Color="{StaticResource Color.OnSecondary}"/>
   <SolidColorBrush x:Key="Brush.Border" Color="{StaticResource Color.Border}"/>
   <SolidColorBrush x:Key="Brush.Danger" Color="{StaticResource Color.Danger}"/>
   <SolidColorBrush x:Key="Brush.Success" Color="{StaticResource Color.Success}"/>

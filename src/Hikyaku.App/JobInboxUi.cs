@@ -95,6 +95,7 @@ public sealed class JobResultVM : Observable
     public TextTrimming PreviewTrimming => _expanded ? TextTrimming.None : TextTrimming.CharacterEllipsis;
     public ICommand OpenCommand { get; }
     public ICommand HideCommand { get; }
+    public ICommand? MoveToGroupCommand { get; set; }
 }
 
 /// <summary>One folder of the Inbox's Folders layout (failed runs, a group, or a job), with how many of its results are unread.</summary>
@@ -152,6 +153,7 @@ public sealed partial class MainViewModel
     private string? _openInboxFolder;
     private InboxGroups _jobInboxGroups = InboxGroups.Empty;
     private bool _jobInboxGroupsLoaded;
+    private string? _jobInboxGroupsGateway;
 
     public ObservableCollection<JobResultVM> JobResults { get; } = new();
     public ObservableCollection<InboxFolderVM> JobInboxFolders { get; } = new();
@@ -211,6 +213,7 @@ public sealed partial class MainViewModel
     private async Task LoadRunDetailAsync(JobResultVM row)
     {
         if (_runDetails is not { } details) return;
+        var gateway = _gatewayId;
         var key = row.Result.Key;
         if (_runDetailCache.TryGetValue(key, out var cached)) { if (!row.HasDetail) row.SetDetail(cached?.Result); return; }
         if (!_runDetailLoading.Add(key)) return;
@@ -218,12 +221,14 @@ public sealed partial class MainViewModel
         try
         {
             var detail = await details.LoadAsync(row.Result, default).ConfigureAwait(true);
+            if (gateway != _gatewayId || !ReferenceEquals(details, _runDetails)) return;
             // A run with no answer yet, or a script preview taken before the gateway could be asked, is not final.
             if (IsSettled(row.Result, detail)) _runDetailCache[key] = detail;
             foreach (var r in JobResults.Where(x => x.Result.Key == key)) r.SetDetail(detail?.Result);
         }
         catch (Exception ex)
         {
+            if (gateway != _gatewayId || !ReferenceEquals(details, _runDetails)) return;
             var problem = Shows(ExperienceFeature.InboxSetup) ? "Could not load the result: " + ex.Message : "Could not load the result.";
             foreach (var r in JobResults.Where(x => x.Result.Key == key)) r.SetDetail(null, problem);
         }
@@ -233,6 +238,8 @@ public sealed partial class MainViewModel
             _runDetailLoading.Remove(key);
             Raise(nameof(JobInboxPluginHintVisibility));
             foreach (var f in JobInboxFolders) f.Refresh();
+            if (_jobInboxFilter != "all" || !string.IsNullOrWhiteSpace(_jobInboxSearch)) RebuildJobInbox(false);
+            else RaiseInboxOrganization();
         }
     }
 
@@ -244,6 +251,7 @@ public sealed partial class MainViewModel
         try { await _inboxReads.MarkReadAsync(_gatewayId, results.Select(r => r.Key)).ConfigureAwait(true); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { JobInboxStatus = "Couldn't remember what you read: " + ex.Message; }
         foreach (var f in JobInboxFolders) f.Refresh();
+        RebuildJobInbox(false);
     }
 
     private Task MarkAllJobResultsReadAsync() =>
@@ -289,7 +297,7 @@ public sealed partial class MainViewModel
         set { if (_jobInboxShowAll == value) return; _jobInboxShowAll = value; _openInboxFolder = null; Raise(); RebuildJobInbox(); }
     }
 
-    public bool InFolderList => !_jobInboxShowAll && _openInboxFolder is null;
+    public bool InFolderList => !_jobInboxShowAll && _openInboxFolder is null && _jobInboxFilter == "all" && string.IsNullOrWhiteSpace(_jobInboxSearch);
     public Visibility JobInboxFoldersVisibility => InFolderList ? Visibility.Visible : Visibility.Collapsed;
     public Visibility JobInboxResultsVisibility => InFolderList ? Visibility.Collapsed : Visibility.Visible;
     public Visibility JobInboxBackVisibility => _openInboxFolder is null ? Visibility.Collapsed : Visibility.Visible;
@@ -310,6 +318,7 @@ public sealed partial class MainViewModel
         if (_cronApi() is not { } api) { _jobResultsAll = []; RebuildJobInbox(); JobInboxStatus = "Connect to a gateway to see your scheduled job results."; return; }
         if (ActiveProfileKey() is not { } active) { _jobResultsAll = []; RebuildJobInbox(); JobInboxStatus = "Choose a profile in Settings first."; return; }
         var all = _jobInboxAll && ProfileChoices.Count > 1;
+        var gatewayAtStart = _gatewayId;
         var generation = ++_jobInboxGeneration;
         _jobInboxLoading = true;
         (_refreshJobInbox as RelayCommand)?.Refresh();
@@ -317,6 +326,7 @@ public sealed partial class MainViewModel
         try
         {
             await LoadInboxGroupsAsync().ConfigureAwait(true);
+            if (generation != _jobInboxGeneration || gatewayAtStart != _gatewayId || active != ActiveProfileKey()) return;
             if (_inboxReads is not null && !_inboxReadsLoaded)
             {
                 try { await _inboxReads.LoadAsync().ConfigureAwait(true); }
@@ -329,7 +339,7 @@ public sealed partial class MainViewModel
                 (job, ct) => api.RunsAsync(job, JobInbox.RunsPerJob, ct),
                 active.ProfileId, all, p => _gate.Allow(Surface.Inbox, new ProfileKey(gateway, p)),
                 _jobInboxPrefs?.Hidden ?? new HashSet<string>(), default).ConfigureAwait(true);
-            if (generation != _jobInboxGeneration) return;                       // a newer refresh or a profile switch won
+            if (generation != _jobInboxGeneration || gatewayAtStart != _gatewayId || active != ActiveProfileKey()) return;                       // a newer refresh or a profile switch won
             _jobResultsAll = load.Results;
             _hiddenJobs = load.HiddenJobs;
             RebuildJobInbox();
@@ -339,7 +349,7 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex)
         {
-            if (generation != _jobInboxGeneration) return;
+            if (generation != _jobInboxGeneration || gatewayAtStart != _gatewayId || active != ActiveProfileKey()) return;
             JobInboxStatus = ex is CronException { Failure: CronFailure.Unsupported }
                 ? "This gateway doesn't offer scheduled jobs to the app."
                 : "Couldn't load the results: " + ex.Message;
@@ -352,39 +362,49 @@ public sealed partial class MainViewModel
 
     private async Task LoadInboxGroupsAsync()
     {
-        if (_jobInboxGroupsLoaded || _groupsStore() is not { } store) return;
-        try { _jobInboxGroups = await store.LoadAsync(_gatewayId).ConfigureAwait(true); }
-        catch (Exception) { _jobInboxGroups = InboxGroups.Empty; }                  // unreadable groups: everything shows as its own job
+        var gateway = _gatewayId;
+        if ((_jobInboxGroupsLoaded && _jobInboxGroupsGateway == gateway) || _groupsStore() is not { } store) return;
+        InboxGroups groups;
+        try { groups = await store.LoadAsync(gateway).ConfigureAwait(true); }
+        catch (Exception) { groups = InboxGroups.Empty; }
+        if (gateway != _gatewayId) return;
+        _jobInboxGroups = groups;
+        _jobInboxGroupsGateway = gateway;                  // unreadable groups: everything shows as its own job
         _jobInboxGroupsLoaded = true;
     }
 
     /// <summary>Redraws the folders or the results from what was last loaded (no request).</summary>
-    private void RebuildJobInbox()
+    private void RebuildJobInbox(bool loadDetails = true, bool reuseRows = false)
     {
         var showProfile = _jobInboxAll && ProfileChoices.Count > 1;
+        var folderGateway = _gatewayId;
+        var folderProfile = ActiveProfileKey();
         JobInboxFolders.Clear();
         foreach (var f in InboxFolders.Of(_jobResultsAll, _jobInboxGroups))
         {
             var key = f.Key;
             var jobKey = f.JobKey;
-            ICommand? move = f.Kind == InboxFolderKind.Failed ? null : new RelayCommand(_ => _ = MoveToGroupAsync(f));
+            ICommand? move = f.Kind == InboxFolderKind.Failed ? null : new RelayCommand(_ => { if (folderGateway == _gatewayId && folderProfile == ActiveProfileKey()) _ = MoveToGroupAsync(f); });
             JobInboxFolders.Add(new InboxFolderVM(f, new RelayCommand(_ => { _openInboxFolder = key; RebuildJobInbox(); }), move,
                 () => UnreadIn(key), () => FolderPreview(key)));
         }
         if (_openInboxFolder is { } open && JobInboxFolders.All(f => f.Folder.Key != open)) _openInboxFolder = null;   // the folder emptied
+        var previous = loadDetails && !reuseRows ? null : JobResults.ToDictionary(r => r.Result.Key);
         JobResults.Clear();
         if (!InFolderList)
         {
             var shown = _openInboxFolder is { } k ? InboxFolders.In(_jobResultsAll, k, _jobInboxGroups) : _jobResultsAll;
-            foreach (var r in shown) JobResults.Add(ToRow(r, showProfile));
-            _ = LoadRunDetailsAsync(JobResults.Take(DetailRowsOnShow).ToList());
+            foreach (var r in shown.Where(MatchesInboxOrganization))
+                JobResults.Add(previous is not null && previous.TryGetValue(r.Key, out var existing) ? existing : ToRow(r, showProfile));
+            if (loadDetails) _ = LoadRunDetailsAsync(JobResults.Take(DetailRowsOnShow).ToList());
         }
-        else _ = LoadRunDetailsAsync(InboxFolders.Of(_jobResultsAll, _jobInboxGroups)
+        else if (loadDetails) _ = LoadRunDetailsAsync(InboxFolders.Of(_jobResultsAll, _jobInboxGroups)
             .Select(f => InboxFolders.In(_jobResultsAll, f.Key, _jobInboxGroups).FirstOrDefault())
             .OfType<JobResult>().Distinct().Select(r => ToRow(r, showProfile)).ToList());          // each folder's newest, for its preview
         Raise(nameof(InFolderList)); Raise(nameof(JobInboxFoldersVisibility)); Raise(nameof(JobInboxResultsVisibility));
         Raise(nameof(JobInboxBackVisibility)); Raise(nameof(JobInboxTitle));
         Raise(nameof(HiddenJobsNote)); Raise(nameof(HiddenJobsVisibility));
+        RaiseInboxOrganization();
     }
 
     private JobResultVM ToRow(JobResult r, bool showProfile)
@@ -397,6 +417,12 @@ public sealed partial class MainViewModel
             new RelayCommand(_ => _ = HideJobAsync(r)),
             new RelayCommand(_ => { if (row!.IsUnread) _ = MarkJobResultsReadAsync([r]); _ = OpenJobResultAsync(r); }),
             unread: !IsJobResultRead(r));
+        var gateway = _gatewayId;
+        row.MoveToGroupCommand = new RelayCommand(_ =>
+        {
+            if (gateway != _gatewayId || !_gate.Allow(Surface.Inbox, key)) return;
+            _ = MoveToGroupAsync(new InboxFolder(InboxFolders.JobKey(r.JobKey), r.Title, InboxFolderKind.Job, 1, r.At, "", r.JobKey));
+        });
         if (_runDetailCache.TryGetValue(r.Key, out var cached)) row.SetDetail(cached?.Result);
         return row;
     }
@@ -406,16 +432,19 @@ public sealed partial class MainViewModel
     {
         if (PromptText is null) return;
         var current = folder.Kind == InboxFolderKind.Group ? folder.Name : (folder.JobKey is { } jk ? _jobInboxGroups.GroupOf(jk) ?? "" : "");
-        var name = PromptText("Group name (leave empty to take it out of its group)", current);
+        var gateway = _gatewayId;
+        var profile = ActiveProfileKey();
+        var choices = _jobInboxGroups.Names.Count > 0 ? " Existing folders: " + string.Join(", ", _jobInboxGroups.Names) + "." : "";
+        var name = PromptText("Move this job to a folder (existing or new). Leave empty to remove it." + choices, current);
         if (name is null) return;                                                    // cancelled
         var jobs = folder.Kind == InboxFolderKind.Group
             ? _jobResultsAll.Where(r => _jobInboxGroups.GroupOf(r.JobKey) == folder.Name).Select(r => r.JobKey).Distinct().ToList()
             : folder.JobKey is { } only ? [only] : [];
-        var groups = _jobInboxGroups;
-        foreach (var j in jobs) groups = groups.WithJob(j, name.Trim().Length == 0 ? null : name.Trim());
-        _jobInboxGroups = groups;
-        try { if (_groupsStore() is { } store) await store.SaveAsync(_gatewayId, groups).ConfigureAwait(true); }
-        catch (Exception ex) { JobInboxStatus = "Couldn't remember the group: " + ex.Message; }
+        if (!await MutateInboxGroupsAsync(gateway, profile, groups =>
+        {
+            foreach (var j in jobs) groups = groups.WithJob(j, string.IsNullOrWhiteSpace(name) ? null : name.Trim());
+            return groups;
+        }).ConfigureAwait(true)) return;
         _openInboxFolder = null;
         RebuildJobInbox();
     }

@@ -57,4 +57,60 @@ public class Checkpoint43InboxFoldersTests
         var job = J("m", "mail-reader");
         Assert.DoesNotContain(InboxFolders.Of([R(job, "m1", 1)], InboxGroups.Empty), f => f.Kind == InboxFolderKind.Failed);
     }
+    private sealed class FolderMemory : IPreferenceStore
+    {
+        private string? _value;
+        public Task<string?> LoadAsync(CancellationToken ct = default) => Task.FromResult(_value);
+        public Task SaveAsync(string value, CancellationToken ct = default) { _value = value; return Task.CompletedTask; }
+    }
+
+    [Fact]
+    public async Task Named_empty_folders_are_visible_and_remembered()
+    {
+        var groups = new InboxGroups(["Reports"], new Dictionary<string, string>());
+        var folder = Assert.Single(InboxFolders.Of([], groups));
+        Assert.Equal("Reports", folder.Name);
+        Assert.Equal(0, folder.Count);
+        var store = new FolderMemory();
+        var persisted = new InboxGroupsStore(store);
+        await persisted.SaveAsync("gw", groups);
+        Assert.Equal("Reports", Assert.Single((await persisted.LoadAsync("gw")).Names));
+        Assert.Empty((await persisted.LoadAsync("other")).Names);
+    }
+    [Fact]
+    public void A_folder_assignment_cannot_move_a_same_id_job_of_another_profile()
+    {
+        var first = J("same", "Default report");
+        using var doc = JsonDocument.Parse("""{"id":"same","name":"Other report","profile":"other","state":"scheduled"}""");
+        var other = CronJob.FromJson(doc.RootElement)!;
+        var groups = InboxGroups.Empty.WithJob(JobInbox.KeyOf(first), "Reports");
+        var results = new[] { R(first, "r1", 2), R(other, "r2", 1) };
+        Assert.Equal("Default report", Assert.Single(InboxFolders.In(results, InboxFolders.GroupKey("Reports"), groups)).Title);
+        Assert.Contains(InboxFolders.Of(results, groups), f => f.Name == "Other report" && f.Kind == InboxFolderKind.Job);
+    }
+    private sealed class GatedStore : IPreferenceStore
+    {
+        public string? Content;
+        public readonly TaskCompletionSource Release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public int Saves;
+        public Task<string?> LoadAsync(CancellationToken ct = default) => Task.FromResult(Content);
+        public async Task SaveAsync(string value, CancellationToken ct = default)
+        {
+            if (Interlocked.Increment(ref Saves) == 1) await Release.Task;
+            Content = value;
+        }
+    }
+
+    [Fact]
+    public async Task Concurrent_gateway_saves_preserve_each_gateway()
+    {
+        var memory = new GatedStore();
+        var store = new InboxGroupsStore(memory);
+        var a = store.SaveAsync("a", new InboxGroups(["A"], new Dictionary<string, string>()));
+        var b = store.SaveAsync("b", new InboxGroups(["B"], new Dictionary<string, string>()));
+        memory.Release.SetResult();
+        await Task.WhenAll(a, b);
+        Assert.Equal("A", Assert.Single((await store.LoadAsync("a")).Names));
+        Assert.Equal("B", Assert.Single((await store.LoadAsync("b")).Names));
+    }
 }

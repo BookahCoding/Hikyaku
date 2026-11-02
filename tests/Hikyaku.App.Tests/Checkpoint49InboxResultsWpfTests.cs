@@ -74,12 +74,12 @@ public class Checkpoint49InboxResultsWpfTests
         }
     }
 
-    private static (MainViewModel Vm, Answers Answers, InboxReadStore Reads) Make(int agentJobs = 1, bool advanced = true)
+    private static (MainViewModel Vm, Answers Answers, InboxReadStore Reads) Make(int agentJobs = 1, bool advanced = true, IPreferenceStore? groupPreferences = null)
     {
         var selection = new ProfileSelectionService(new MemStore());
         selection.SetSelectedAsync([new ProfileKey("gw", "default")]).GetAwaiter().GetResult();
         var auth = new DashboardAuth(new Uri("https://hermes.example/"), new Stub(agentJobs));
-        var groupsStore = new InboxGroupsStore(new MemStore());
+        var groupsStore = new InboxGroupsStore(groupPreferences ?? new MemStore());
         var vm = new MainViewModel(selection, new NotificationGate(selection), () => new DemoTransport(), () => "t",
             () => null, () => null, () => null, () => null, () => null, () => null, () => null, () => groupsStore);
         vm.ApplyExperience(advanced);
@@ -274,6 +274,150 @@ public class Checkpoint49InboxResultsWpfTests
             vm.RefreshJobInboxAsync().GetAwaiter().GetResult();
             script = vm.JobResults.Single(r => r.Title == "homelab-alerts");
             Assert.True(PumpUntil(() => script.Excerpt.Contains("whole output")), script.Excerpt);
+        });
+    }
+    [Fact]
+    public void Local_filters_search_and_read_counts_follow_visible_results()
+    {
+        RunSta(() =>
+        {
+            var (vm, _, _) = Make();
+            ShowAll(vm);
+            Assert.True(PumpUntil(() => vm.JobResults.All(r => r.HasDetail)));
+            var filter = vm.GetType().GetProperty("JobInboxFilter");
+            Assert.NotNull(filter);
+            var search = vm.GetType().GetProperty("JobInboxSearch")!;
+            filter.SetValue(vm, "script");
+            Assert.True(Assert.Single(vm.JobResults).Result.IsScriptOutput);
+            filter.SetValue(vm, "failed");
+            Assert.Equal("homelab-alerts", Assert.Single(vm.JobResults).Title);
+            filter.SetValue(vm, "all");
+            search.SetValue(vm, "/bookahmail-mail");
+            Assert.Empty(vm.JobResults); // the job prompt is not an answer
+            search.SetValue(vm, "important mails");
+            Assert.Equal("important-mail", Assert.Single(vm.JobResults).Title);
+            search.SetValue(vm, "no matching report");
+            Assert.Empty(vm.JobResults);
+            Assert.Equal(Visibility.Visible, vm.GetType().GetProperty("JobInboxEmptyVisibility")!.GetValue(vm));
+            search.SetValue(vm, "");
+            filter.SetValue(vm, "unread");
+            Assert.Equal(2, vm.JobResults.Count);
+            vm.MarkAllJobResultsReadCommand.Execute(null);
+            Assert.Empty(vm.JobResults);
+            Assert.Contains("0", (string)vm.GetType().GetProperty("JobInboxUnreadLabel")!.GetValue(vm)!);
+        });
+    }
+
+    [Fact]
+    public void Create_folder_is_local_persistent_and_cancel_is_a_noop()
+    {
+        RunSta(() =>
+        {
+            var (vm, _, _) = Make();
+            vm.RefreshJobInboxAsync().GetAwaiter().GetResult();
+            var command = vm.GetType().GetProperty("CreateInboxFolderCommand");
+            Assert.NotNull(command);
+            vm.PromptText = (_, _) => "Reports";
+            ((System.Windows.Input.ICommand)command.GetValue(vm)!).Execute(null);
+            Assert.Contains(vm.JobInboxFolders, f => f.Name == "Reports" && f.Folder.Count == 0);
+            vm.PromptText = (_, _) => null;
+            var count = vm.JobInboxFolders.Count;
+            ((System.Windows.Input.ICommand)command.GetValue(vm)!).Execute(null);
+            Assert.Equal(count, vm.JobInboxFolders.Count);
+        });
+    }
+    [Fact]
+    public void Clear_filters_removes_search_and_filter_together()
+    {
+        RunSta(() =>
+        {
+            var (vm, _, _) = Make();
+            ShowAll(vm);
+            vm.JobInboxFilter = "script";
+            vm.JobInboxSearch = "missing output";
+            Assert.Empty(vm.JobResults);
+            var command = vm.GetType().GetProperty("ClearJobInboxFiltersCommand");
+            Assert.NotNull(command);
+            ((System.Windows.Input.ICommand)command.GetValue(vm)!).Execute(null);
+            Assert.Equal("all", vm.JobInboxFilter);
+            Assert.Equal("", vm.JobInboxSearch);
+            Assert.Equal(2, vm.JobResults.Count);
+        });
+    }
+    private sealed class GatedFolders : IPreferenceStore
+    {
+        public string? Content;
+        public readonly TaskCompletionSource Release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public int Saves;
+        public Task<string?> LoadAsync(CancellationToken ct = default) => Task.FromResult(Content);
+        public async Task SaveAsync(string content, CancellationToken ct = default)
+        {
+            if (Interlocked.Increment(ref Saves) == 1) await Release.Task;
+            Content = content;
+        }
+    }
+
+    [Fact]
+    public void Overlapping_folder_creates_survive_refresh_during_save()
+    {
+        RunSta(() =>
+        {
+            var store = new GatedFolders();
+            var (vm, _, _) = Make(groupPreferences: store);
+            vm.RefreshJobInboxAsync().GetAwaiter().GetResult();
+            vm.PromptText = (_, _) => "A";
+            vm.CreateInboxFolderCommand.Execute(null);
+            Assert.Equal(1, store.Saves);
+            vm.RefreshJobInboxAsync().GetAwaiter().GetResult();
+            vm.PromptText = (_, _) => "B";
+            vm.CreateInboxFolderCommand.Execute(null);
+            store.Release.SetResult();
+            Assert.True(PumpUntil(() => vm.JobInboxFolders.Any(f => f.Name == "A") && vm.JobInboxFolders.Any(f => f.Name == "B")));
+            var saved = new InboxGroupsStore(store).LoadAsync("gw").GetAwaiter().GetResult();
+            Assert.Contains("A", saved.Names);
+            Assert.Contains("B", saved.Names);
+        });
+    }
+
+    [Fact]
+    public void A_pending_move_and_create_preserve_membership_and_folder_names()
+    {
+        RunSta(() =>
+        {
+            var store = new GatedFolders();
+            var (vm, _, _) = Make(groupPreferences: store);
+            ShowAll(vm);
+            vm.PromptText = (_, _) => "Home";
+            var script = vm.JobResults.Single(r => r.Result.IsScriptOutput);
+            script.MoveToGroupCommand!.Execute(null);
+            vm.PromptText = (_, _) => "Reports";
+            vm.CreateInboxFolderCommand.Execute(null);
+            store.Release.SetResult();
+            Assert.True(PumpUntil(() => vm.JobInboxFolders.Any(f => f.Name == "Home") && vm.JobInboxFolders.Any(f => f.Name == "Reports")));
+            var saved = new InboxGroupsStore(store).LoadAsync("gw").GetAwaiter().GetResult();
+            Assert.Equal("Home", saved.GroupOf(script.Result.JobKey));
+            Assert.Contains("Reports", saved.Names);
+        });
+    }
+
+    [Fact]
+    public void Matching_local_projections_keep_the_expanded_result_instance()
+    {
+        RunSta(() =>
+        {
+            var (vm, _, _) = Make();
+            ShowAll(vm);
+            Assert.True(PumpUntil(() => vm.JobResults.All(r => r.HasDetail)));
+            var script = vm.JobResults.Single(r => r.Result.IsScriptOutput);
+            script.OpenCommand.Execute(null);
+            vm.JobInboxSearch = "disk";
+            Assert.Same(script, Assert.Single(vm.JobResults));
+            Assert.True(script.IsExpanded);
+            vm.JobInboxFilter = "script";
+            Assert.Same(script, Assert.Single(vm.JobResults));
+            vm.ClearJobInboxFiltersCommand.Execute(null);
+            Assert.Same(script, vm.JobResults.Single(r => r.Result.IsScriptOutput));
+            Assert.True(script.IsExpanded);
         });
     }
 }

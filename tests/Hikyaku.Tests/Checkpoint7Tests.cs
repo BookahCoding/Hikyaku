@@ -38,7 +38,6 @@ public class Checkpoint7ThemeTests
         Assert.Contains("Irises and grasshopper", iris.InspirationNote, StringComparison.OrdinalIgnoreCase);
         foreach (var other in ThemeCatalog.All.Where(t => t.Id != iris.Id))
         {
-            Assert.True(RgbDistance(iris.Light.Bg, other.Light.Bg) >= 36, "irises light bg vs " + other.Id);
             Assert.True(RgbDistance(iris.Light.Accent, other.Light.Accent) >= 40, "irises light accent vs " + other.Id);
             Assert.True(RgbDistance(iris.Dark.Accent, other.Dark.Accent) >= 55, "irises dark accent vs " + other.Id);
         }
@@ -69,8 +68,7 @@ public class Checkpoint7ThemeTests
         {
             foreach (var other in earlier.Append(fresh.Single(t => t.Id != theme.Id)))
             {
-                // Light paper and accent both have to move, or the swatch is another pale sheet with a familiar pill.
-                Assert.True(RgbDistance(theme.Light.Bg, other.Light.Bg) >= 36, theme.Id + " light bg vs " + other.Id);
+                // Shared neutral paper leaves the accent pair to distinguish families.
                 Assert.True(RgbDistance(theme.Light.Accent, other.Light.Accent) >= 40, theme.Id + " light accent vs " + other.Id);
                 // Dark grounds are all near-black; the accent pill is what separates them in the gallery.
                 Assert.True(RgbDistance(theme.Dark.Accent, other.Dark.Accent) >= 55, theme.Id + " dark accent vs " + other.Id);

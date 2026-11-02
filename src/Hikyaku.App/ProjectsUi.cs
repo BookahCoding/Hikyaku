@@ -349,7 +349,7 @@ public partial class MainViewModel
             return;
         }
         ProjectWriteEnabled = grant.Mode == FolderGrantMode.ReadWrite;
-        ProjectRootLabel = $"{grant.CanonicalRoot} · {grant.Mode} · machine {grant.MachineId}";
+        ProjectRootLabel = $"{grant.CanonicalRoot} · {(grant.Mode == FolderGrantMode.ReadWrite ? "Read and write" : "Read only")}";
         CurrentProjectPathHint = grant.CanonicalRoot;
         var ws = new ProjectWorkspace(_folderGrants, key.Value);
         var list = await ws.ListAsync(_projectRelDir).ConfigureAwait(true);

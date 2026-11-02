@@ -5,6 +5,14 @@ are `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+## 0.7.7 — Organized Inbox and clearer navigation
+
+- Inbox adds counted All, Unread, Failed and Script filters, available-result search, custom folders (including empty folders), and visible move actions. Local filtering preserves opened results; overlapping folder changes are serialized.
+- Settings scrolls over the theme gallery and blank page space; nested lists hand wheel scrolling to their page at boundaries. Light, Dark and System are visible before the gallery.
+- Every theme uses neutral off-white or black main surfaces with two distinct accents across actions, tabs, indicators, selection and visible scrollbars.
+- Scheduled jobs and capabilities use readable cards and clearer actions. Projects groups folder browsing, sharing, checkpoints and publishing into guided sections.
+- Other screens gain wrapping toolbars, selected filters, keyboard Open actions, clearer empty states and bounded detail panels. Expanded terminal help preserves usable output space.
+
 ## 0.7.6 — Chat reliability
 
 - Chat drafts stay with their conversation when switching chats or profiles; delayed draft loading cannot overwrite newly typed text.

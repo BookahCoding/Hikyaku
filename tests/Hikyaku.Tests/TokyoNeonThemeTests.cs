@@ -16,6 +16,7 @@ public class TokyoNeonThemeTests
         Assert.Equal(secondary, theme.Dark.EffectiveSecondary);
         foreach (var p in new[] { theme.Light, theme.Dark })
         {
+            if (p == theme.Dark) Assert.Equal("#000000", p.Bg);
             Assert.NotNull(p.Secondary);
             Assert.True(Distance(p.Accent, p.EffectiveSecondary) > 100);
             foreach (var ground in new[] { p.Bg, p.Surface, p.SurfaceSidebar, p.SurfaceRaised, p.Surface3, p.Well })
@@ -29,15 +30,32 @@ public class TokyoNeonThemeTests
     }
 
     [Fact]
-    public void Existing_themes_keep_their_original_accent_as_the_secondary_fallback()
+    public void Every_theme_has_neutral_grounds_and_two_readable_distinct_accents()
     {
-        foreach (var theme in ThemeCatalog.All.Where(t => t.Id is not "shibuya-night" and not "akihabara"))
-            foreach (var p in new[] { theme.Light, theme.Dark })
+        foreach (var theme in ThemeCatalog.All)
+        foreach (var p in new[] { theme.Light, theme.Dark })
+        {
+            Assert.NotNull(p.Secondary);
+            Assert.True(Distance(p.Accent, p.EffectiveSecondary) > 60, theme.Id + " accent separation");
+            foreach (var ground in new[] { p.Bg, p.Surface, p.SurfaceSidebar, p.SurfaceRaised, p.Surface3, p.Well })
             {
-                Assert.Null(p.Secondary);
-                Assert.Equal(p.Accent, p.EffectiveSecondary);
-                Assert.Equal(p.OnAccent, p.EffectiveOnSecondary);
+                var channels = Rgb(ground);
+                Assert.True(channels.Max() - channels.Min() <= 6, theme.Id + " neutral ground " + ground);
+                Assert.True(p == theme.Light ? channels.Min() >= 230 : channels.Max() <= 35, theme.Id + " light/dark ground");
+                foreach (var ink in new[] { p.Text, p.Text2, p.TextMuted, p.Accent, p.EffectiveSecondary, p.Danger, p.Success, p.Warning })
+                    Assert.True(Contrast(ink, ground) >= 4.5, theme.Id + ": " + ink + " on " + ground);
             }
+            Assert.True(Contrast(p.OnAccent, p.Accent) >= 4.5, theme.Id + " primary label");
+            Assert.True(Contrast(p.EffectiveOnSecondary, p.EffectiveSecondary) >= 4.5, theme.Id + " secondary label");
+        }
+    }
+
+    [Fact]
+    public void A_palette_without_a_secondary_still_resolves_the_primary_as_fallback()
+    {
+        var p = ThemeCatalog.All[0].Light with { Secondary = null, OnSecondary = null };
+        Assert.Equal(p.Accent, p.EffectiveSecondary);
+        Assert.Equal(p.OnAccent, p.EffectiveOnSecondary);
     }
 
     [Fact]

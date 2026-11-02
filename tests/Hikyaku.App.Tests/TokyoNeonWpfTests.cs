@@ -29,7 +29,7 @@ public class TokyoNeonWpfTests
                 var swatch = new ThemeSwatch(theme);
                 Assert.Equal(ThemeService.ParseColor(theme.Light.EffectiveSecondary), ((SolidColorBrush)swatch.LightSecondary).Color);
                 Assert.Equal(ThemeService.ParseColor(theme.Dark.EffectiveSecondary), ((SolidColorBrush)swatch.DarkSecondary).Color);
-                Assert.Equal(id == "washi-ink" ? Visibility.Collapsed : Visibility.Visible, swatch.SecondaryVisibility);
+                Assert.Equal(Visibility.Visible, swatch.SecondaryVisibility);
             }
         });
     }
@@ -48,6 +48,19 @@ public class TokyoNeonWpfTests
             Assert.Equal(Colors.Cyan, ((SolidColorBrush)run.Foreground).Color);
             doc.Resources["Brush.Secondary"] = new SolidColorBrush(Colors.Violet);
             Assert.Equal(Colors.Violet, ((SolidColorBrush)run.Foreground).Color);
+        });
+    }
+
+    [Fact]
+    public void Startup_resources_use_black_neutral_surfaces_and_the_washi_secondary_before_preview()
+    {
+        RunSta(() =>
+        {
+            _ = Application.Current ?? new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+            var resources = new ResourceDictionary { Source = new Uri("/Hikyaku;component/Theme/Tokens.xaml", UriKind.Relative) };
+            Assert.Equal(Colors.Black, ((SolidColorBrush)resources["Brush.Bg"]).Color);
+            Assert.Equal(Color.FromRgb(0x00, 0x00, 0x00), ((SolidColorBrush)resources["Brush.Surface"]).Color);
+            Assert.Equal(Color.FromRgb(0x73, 0xB6, 0xE3), ((SolidColorBrush)resources["Brush.Secondary"]).Color);
         });
     }
 

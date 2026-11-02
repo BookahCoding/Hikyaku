@@ -42,6 +42,9 @@ public static class InboxFolders
                 ? Make(b.Key, b.Key["group:".Length..], InboxFolderKind.Group, b.ToList(), null)
                 : Make(b.Key, b.First().Title, InboxFolderKind.Job, b.ToList(), b.First().JobKey))
             .OrderByDescending(f => f.NewestAt).ThenBy(f => f.Name, StringComparer.CurrentCultureIgnoreCase));
+        foreach (var name in groups.Names.Distinct(StringComparer.Ordinal))
+            if (folders.All(f => f.Key != GroupKey(name)))
+                folders.Add(new InboxFolder(GroupKey(name), name, InboxFolderKind.Group, 0, 0, "", null));
         return folders;
     }
 

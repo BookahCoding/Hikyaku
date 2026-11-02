@@ -9,7 +9,7 @@ namespace Hikyaku.Core;
 /// </summary>
 public sealed class InboxGroupsStore(IPreferenceStore store)
 {
-    private readonly object _gate = new();
+    private readonly SemaphoreSlim _gate = new(1, 1);
 
     public async Task<InboxGroups> LoadAsync(string gatewayUrl, CancellationToken ct = default)
     {
@@ -19,12 +19,17 @@ public sealed class InboxGroupsStore(IPreferenceStore store)
 
     public async Task SaveAsync(string gatewayUrl, InboxGroups groups, CancellationToken ct = default)
     {
-        var all = await LoadAllAsync(ct).ConfigureAwait(false);
-        all[gatewayUrl] = groups;
-        await store.SaveAsync(JsonSerializer.Serialize(new RootDto
+        await _gate.WaitAsync(ct).ConfigureAwait(false);
+        try
         {
-            Gateways = all.ToDictionary(kv => kv.Key, kv => GroupDto.From(kv.Value))
-        }, InboxGroupJson.Options), ct).ConfigureAwait(false);
+            var all = await LoadAllAsync(ct).ConfigureAwait(false);
+            all[gatewayUrl] = groups;
+            await store.SaveAsync(JsonSerializer.Serialize(new RootDto
+            {
+                Gateways = all.ToDictionary(kv => kv.Key, kv => GroupDto.From(kv.Value))
+            }, InboxGroupJson.Options), ct).ConfigureAwait(false);
+        }
+        finally { _gate.Release(); }
     }
 
     private async Task<Dictionary<string, InboxGroups>> LoadAllAsync(CancellationToken ct)
