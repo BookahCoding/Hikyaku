@@ -128,7 +128,7 @@
         <!-- Appearance -->
         <StackPanel x:Name="PageAppearance" Visibility="Collapsed">
           <TextBlock Style="{StaticResource PageTitle}" Text="Appearance" AutomationProperties.Name="Appearance"/>
-          <TextBlock Style="{StaticResource PageIntro}" Text="Colour themes inspired by the prints of Katsushika Hokusai. Changes show at once; press Save to keep them."/>
+          <TextBlock Style="{StaticResource PageIntro}" Text="Colour themes inspired by Hokusai prints and Tokyo neon. Changes show at once; press Save to keep them."/>
           <Border Style="{StaticResource Card}">
             <StackPanel>
               <TextBlock Style="{StaticResource GroupTitle}" Text="Theme"/>
@@ -169,13 +169,19 @@
                         <Border Background="{Binding LightBackground}" CornerRadius="8,0,0,8">
                           <StackPanel VerticalAlignment="Center" Margin="10,0,0,0">
                             <Border Background="{Binding LightText}" Height="4" Width="30" CornerRadius="2" HorizontalAlignment="Left"/>
-                            <Border Background="{Binding LightAccent}" Height="10" Width="18" CornerRadius="5" HorizontalAlignment="Left" Margin="0,6,0,0"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                              <Border Background="{Binding LightAccent}" Height="10" Width="18" CornerRadius="5"/>
+                              <Border Background="{Binding LightSecondary}" Height="10" Width="18" CornerRadius="5" Margin="4,0,0,0" Visibility="{Binding SecondaryVisibility}"/>
+                            </StackPanel>
                           </StackPanel>
                         </Border>
                         <Border Grid.Column="1" Background="{Binding DarkBackground}" CornerRadius="0,8,8,0">
                           <StackPanel VerticalAlignment="Center" Margin="10,0,0,0">
                             <Border Background="{Binding DarkText}" Height="4" Width="30" CornerRadius="2" HorizontalAlignment="Left"/>
-                            <Border Background="{Binding DarkAccent}" Height="10" Width="18" CornerRadius="5" HorizontalAlignment="Left" Margin="0,6,0,0"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                              <Border Background="{Binding DarkAccent}" Height="10" Width="18" CornerRadius="5"/>
+                              <Border Background="{Binding DarkSecondary}" Height="10" Width="18" CornerRadius="5" Margin="4,0,0,0" Visibility="{Binding SecondaryVisibility}"/>
+                            </StackPanel>
                           </StackPanel>
                         </Border>
                       </Grid>
