@@ -133,9 +133,33 @@ public sealed record ModelCatalog(
             }
         }
         return new ModelCatalog(
-            providers.DistinctBy(p => p.Slug).ToList(),
+            providers.GroupBy(p => p.Slug, StringComparer.Ordinal).Select(MergeProviderRows).ToList(),
             BlankToNull(result?["model"]?.GetValue<string>()),
             BlankToNull(result?["provider"]?.GetValue<string>()));
+    }
+
+    // Herald ModelCatalog.kt @ 5227112f: a keyless stub can precede the user's catalog with the same slug.
+    private static ModelProvider MergeProviderRows(IGrouping<string, ModelProvider> group)
+    {
+        var rows = group.ToList();
+        if (rows.Count == 1) return rows[0];
+        var genericNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "custom", "custom endpoint", "local" };
+        var specific = rows.Where(p => !genericNames.Contains(p.Name.Trim())).ToList();
+        var richest = (specific.Count > 0 ? specific : rows).OrderByDescending(p => p.Models.Count).First();
+        var models = new Dictionary<string, ModelOption>(StringComparer.Ordinal);
+        foreach (var model in rows.SelectMany(p => p.Models))
+        {
+            if (!models.TryGetValue(model.Id, out var first)) models.Add(model.Id, model);
+            else if (first.Price is null && model.Price is not null) models[model.Id] = first with { Price = model.Price };
+        }
+        return richest with
+        {
+            Name = rows.Any(p => string.Equals(p.Name, "Custom", StringComparison.OrdinalIgnoreCase)) ? "Custom" : richest.Name,
+            Models = models.Values.ToList(),
+            Featured = rows.SelectMany(p => p.Featured ?? []).Distinct(StringComparer.Ordinal).Where(models.ContainsKey).ToList(),
+            AuthType = rows.Select(p => p.AuthType).FirstOrDefault(t => t is not null),
+            Keyless = rows.Any(p => p.Keyless)
+        };
     }
 
     private static string? BlankToNull(string? s) => string.IsNullOrWhiteSpace(s) ? null : s;
