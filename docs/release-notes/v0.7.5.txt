@@ -1,0 +1,8 @@
+Hikyaku 0.7.5 - Tokyo neon themes and custom models
+
+- Shibuya Night pairs magenta and cyan; Akihabara pairs electric green and violet. Both themes have light and dark variants and show both accents in Settings > Appearance.
+- The second accent highlights selected navigation, unread dots, and message link/copy text.
+- The model picker keeps the complete Custom catalog when the gateway sends duplicate provider rows. Models, featured choices and available pricing are preserved.
+
+Update from Settings > Updates > Check for updates. Your settings and sign-in are kept.
+For a first installation, use Hikyaku-Setup-0.7.5.exe.
