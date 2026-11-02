@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Input;
 using Hikyaku.Core;
 
 namespace Hikyaku.App;
@@ -51,6 +52,25 @@ public partial class SettingsWindow
         foreach (var s in Sections) s.Page.Visibility = s.Id == id ? Visibility.Visible : Visibility.Collapsed;
         if (!ReferenceEquals(SectionNav.SelectedItem, section.Nav)) SectionNav.SelectedItem = section.Nav;
         PageScroller.ScrollToTop();
+    }
+
+    // Handle the preview before ListBox/ComboBox/Slider can consume the wheel or change a value.
+    // A genuinely scrollable editor keeps its own wheel until it reaches the requested boundary.
+    private void Settings_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (e.Delta == 0) return;
+        for (var node = e.OriginalSource as DependencyObject; node is not null && node != sender;)
+        {
+            if (node is ScrollViewer inner && inner != PageScroller && inner.ScrollableHeight > 0 &&
+                ((e.Delta < 0 && inner.VerticalOffset < inner.ScrollableHeight) ||
+                 (e.Delta > 0 && inner.VerticalOffset > 0))) return;
+            node = node is Visual || node is System.Windows.Media.Media3D.Visual3D
+                ? VisualTreeHelper.GetParent(node) : LogicalTreeHelper.GetParent(node);
+        }
+        var lines = SystemParameters.WheelScrollLines;
+        var distance = lines < 0 ? PageScroller.ViewportHeight : lines * 16.0;
+        PageScroller.ScrollToVerticalOffset(PageScroller.VerticalOffset - e.Delta / 120.0 * distance);
+        e.Handled = true;
     }
 
     private void SectionNav_SelectionChanged(object sender, SelectionChangedEventArgs e)

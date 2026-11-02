@@ -38,7 +38,7 @@
     </Style>
   </Window.Resources>
 
-  <Grid>
+  <Grid Background="Transparent" PreviewMouseWheel="Settings_PreviewMouseWheel">
     <Grid.ColumnDefinitions>
       <ColumnDefinition Width="220"/>
       <ColumnDefinition Width="*"/>
@@ -79,8 +79,8 @@
       </DockPanel>
     </Border>
 
-    <ScrollViewer x:Name="PageScroller" Grid.Column="1" VerticalScrollBarVisibility="Auto" Style="{StaticResource QuietScrollViewer}">
-      <Grid Margin="32,24,32,24" MaxWidth="720" HorizontalAlignment="Left">
+    <ScrollViewer x:Name="PageScroller" Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Style="{StaticResource QuietScrollViewer}">
+      <Grid Margin="32,24,32,24" MaxWidth="720" HorizontalAlignment="Stretch">
 
         <!-- General -->
         <StackPanel x:Name="PageGeneral">
@@ -131,9 +131,25 @@
           <TextBlock Style="{StaticResource PageIntro}" Text="Colour themes inspired by Hokusai prints and Tokyo neon. Changes show at once; press Save to keep them."/>
           <Border Style="{StaticResource Card}">
             <StackPanel>
+              <TextBlock Style="{StaticResource GroupTitle}" Text="Light or dark"/>
+              <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                <RadioButton x:Name="AppearLight" Content="Light" GroupName="Appear" Checked="AppearancePreview_Changed" Margin="0,0,16,0"/>
+                <RadioButton x:Name="AppearDark" Content="Dark" GroupName="Appear" Checked="AppearancePreview_Changed" Margin="0,0,16,0"/>
+                <RadioButton x:Name="AppearSystem" Content="System (Windows)" GroupName="Appear" Checked="AppearancePreview_Changed"/>
+              </StackPanel>
+              <Border x:Name="ThemePreview" Margin="0,12,0,0" Height="44" CornerRadius="8" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1"
+                      AutomationProperties.Name="Appearance preview">
+                <TextBlock x:Name="ThemePreviewLabel" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+              </Border>
+              <TextBlock x:Name="MotionHint" Style="{StaticResource Hint}" Margin="0,8,0,0"/>
+              <Border Style="{StaticResource Card}">
+            <StackPanel>
               <TextBlock Style="{StaticResource GroupTitle}" Text="Theme"/>
               <ListBox x:Name="ThemePicker" SelectionChanged="AppearancePreview_Changed" AutomationProperties.Name="Theme picker"
-                       ScrollViewer.HorizontalScrollBarVisibility="Disabled" Margin="-4,4,0,0">
+                       ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Disabled" Margin="-4,4,0,0">
+                <ListBox.Template>
+                  <ControlTemplate TargetType="ListBox"><ItemsPresenter/></ControlTemplate>
+                </ListBox.Template>
                 <ListBox.ItemsPanel>
                   <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
                 </ListBox.ItemsPanel>
@@ -192,20 +208,7 @@
               </ListBox>
             </StackPanel>
           </Border>
-          <Border Style="{StaticResource Card}">
-            <StackPanel>
-              <TextBlock Style="{StaticResource GroupTitle}" Text="Light or dark"/>
-              <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                <RadioButton x:Name="AppearLight" Content="Light" GroupName="Appear" Checked="AppearancePreview_Changed" Margin="0,0,16,0"/>
-                <RadioButton x:Name="AppearDark" Content="Dark" GroupName="Appear" Checked="AppearancePreview_Changed" Margin="0,0,16,0"/>
-                <RadioButton x:Name="AppearSystem" Content="Same as Windows" GroupName="Appear" Checked="AppearancePreview_Changed"/>
-              </StackPanel>
-              <Border x:Name="ThemePreview" Margin="0,12,0,0" Height="44" CornerRadius="8" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1"
-                      AutomationProperties.Name="Appearance preview">
-                <TextBlock x:Name="ThemePreviewLabel" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-              </Border>
-              <TextBlock x:Name="MotionHint" Style="{StaticResource Hint}" Margin="0,8,0,0"/>
-            </StackPanel>
+        </StackPanel>
           </Border>
         </StackPanel>
 

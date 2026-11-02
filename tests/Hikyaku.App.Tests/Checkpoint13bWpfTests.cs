@@ -43,6 +43,9 @@ public class Checkpoint13bWpfTests
         {
             MathTypesetter.ResetTestHooks();
             MathTypesetter.ClearCache();
+            // Warm parser/font resources before measuring bitmap allocation.
+            Assert.True(RenderAndWait(@"\frac{a}{b}").Success);
+            MathTypesetter.ClearCache();
             // Cap MaxPixels tiny so a normal fraction's measured size fails BEFORE RTB allocation.
             MathTypesetter.TestMaxPixelsOverride = 64; // 8×8
             var latex = @"\frac{a}{b}";
@@ -52,7 +55,7 @@ public class Checkpoint13bWpfTests
             GC.Collect();
             var before = GC.GetTotalMemory(true);
             var sw = Stopwatch.StartNew();
-            var result = MathTypesetter.Render(latex, emSize: 18, display: true, Colors.Black);
+            var result = RenderAndWait(latex);
             sw.Stop();
             GC.Collect();
             GC.WaitForPendingFinalizers();
@@ -240,13 +243,8 @@ public class Checkpoint13bWpfTests
         {
             MathTypesetter.ResetTestHooks();
             MathTypesetter.ClearCache();
-            // The first draw on a cold runner can miss the 250 ms budget. A timed-out draw is not cached.
-            MathRenderResult a = default;
-            for (var i = 0; i < 8; i++)
-            {
-                a = MathTypesetter.Render(@"\frac{a}{b}", 18, true, Colors.Black);
-                if (a.Success && MathTypesetter.CacheCount > 0) break;
-            }
+            // Cache semantics use the asynchronous UI path, not the 250 ms synchronous fallback budget.
+            var a = RenderAndWait(@"\frac{a}{b}");
             Assert.True(a.Success, a.FallbackReason);
             Assert.True(MathTypesetter.CacheCount > 0);
             var b = MathTypesetter.Render(@"\frac{a}{b}", 18, true, Colors.Black);
@@ -306,6 +304,23 @@ public class Checkpoint13bWpfTests
         return false;
     }
 
+    private static MathRenderResult RenderAndWait(string latex)
+    {
+        MathRenderResult? result = null;
+        MathTypesetter.Request(latex, 18, true, Colors.Black, MathTypesetter.Generation,
+            () => true, Dispatcher.CurrentDispatcher, value => result = value);
+        var deadline = DateTime.UtcNow.AddSeconds(15);
+        while (result is null && DateTime.UtcNow < deadline)
+        {
+            var frame = new DispatcherFrame();
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(20) };
+            timer.Tick += (_, _) => { timer.Stop(); frame.Continue = false; };
+            timer.Start();
+            Dispatcher.PushFrame(frame);
+        }
+        Assert.True(result.HasValue, "The asynchronous renderer did not complete.");
+        return result.Value;
+    }
     private static void TraceLine(string line)
     {
         var dir = Path.Combine("artifacts", "checkpoint13b");

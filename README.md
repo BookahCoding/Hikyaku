@@ -10,8 +10,8 @@ It is an independent, community-built client. It is not made by or affiliated wi
 
 ## Status
 
-**v0.7.5.** Everything has been built against the published Hermes protocol and tested with
-automated tests against a simulated gateway (about 1,250 tests), and it is in daily use on one real gateway. Expect rough
+**v0.7.7.** Everything has been built against the published Hermes protocol and tested with
+automated tests against a simulated gateway (over 1,300 tests), and it is in daily use on one real gateway. Expect rough
 edges with other servers and please report them (see below); fixes arrive as in-app updates.
 
 ## What it does
@@ -19,7 +19,7 @@ edges with other servers and please report them (see below); fixes arrive as in-
 - **Chats** with your Hermes agents: streaming replies, maths (TeX), attachments, voice dictation, read aloud, copy, edit and
   regenerate, branch, find in chat, steer or queue a message while a reply is running, and clear cards when a reply fails.
   Nothing is ever resent automatically.
-- **Inbox** for the results of your scheduled jobs: what each run found at a glance, failures marked, unread dots, opened in
+- **Inbox** with counted status filters, search and your own folders for the results of your scheduled jobs: what each run found at a glance, failures marked, unread dots, opened in
   place or asked about in a chat (the optional `hikyaku-cron` Hermes plugin shows script-only jobs' whole output), and **Needs you** for
   approvals and questions the agent is waiting on, with Windows notifications if you turn them on.
 - **Folders on this PC**, while Hikyaku is open: Hermes can list, read, and write inside folders you allow. Hikyaku asks
@@ -27,7 +27,7 @@ edges with other servers and please report them (see below); fixes arrive as in-
 - **Advanced tools** for whoever looks after the gateway: scheduled jobs, skills, toolsets and MCP servers, the skills hub,
   a settings editor and `config.yaml` editor, insights, hosted rooms, artifacts, the memory graph (Journey), and local
   projects with folder sharing, Git checkpoints and a local terminal.
-- Eleven themes with light and dark variants: nine inspired by Hokusai and two by Tokyo neon, with paired accent colours. Larger text sizes, keyboard shortcuts (Ctrl+K palette,
+- Eleven themes with light and dark variants: nine inspired by Hokusai and two by Tokyo neon, with neutral off-white or black surfaces and two accents across controls. Larger text sizes, keyboard shortcuts (Ctrl+K palette,
   Ctrl+N, Ctrl+F and more; Ctrl+/ lists them) and respect for Windows reduced-motion and high-contrast settings.
 
 ## Simple and Advanced

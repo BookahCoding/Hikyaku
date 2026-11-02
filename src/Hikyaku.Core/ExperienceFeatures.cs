@@ -4,7 +4,7 @@ namespace Hikyaku.Core;
 public enum ExperienceFeature
 {
     // sidebar pages
-    Chats, Inbox, InboxSetup, NeedsYou, Bots, Rooms, Capabilities, Journey, Insights, Projects, Scheduled, Artifacts,
+    Chats, Inbox, InboxOrganization, InboxSetup, NeedsYou, Bots, Rooms, Capabilities, Journey, Insights, Projects, Scheduled, Artifacts,
     // gateway configuration (writes config.yaml)
     ConfigEditor, McpEdit,
     // choosing which ticked profile (agent) to talk to; shown only when more than one is ticked
@@ -38,6 +38,7 @@ public static class Experience
     [
         ExperienceFeature.Chats,
         ExperienceFeature.Inbox,
+        ExperienceFeature.InboxOrganization, // local filters, search and custom folders for everyday results
         ExperienceFeature.NeedsYou,          // an approval the agent is waiting on must never be hidden
         ExperienceFeature.ProfileSwitcher,   // whom to talk to is everyday chatting (one ticked profile hides it anyway)
         ExperienceFeature.Artifacts,         // the pictures and files the agent made: read-only on the gateway (the maintainer, 2026-10-27)

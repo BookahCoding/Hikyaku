@@ -1,4 +1,4 @@
-﻿# Hikyaku project instructions
+# Hikyaku project instructions
 
 ## Project and references
 - Native Windows WPF client for an existing Hermes dashboard gateway; .NET 9.
@@ -20,3 +20,5 @@
 - `./scripts/smoke.ps1` and `./scripts/ui-acceptance.ps1` test the published executable: only run them after a successful fresh publish.
 - `./scripts/check-secrets.ps1` must report clean before committing. Stage explicit paths.
 - Builds and fixtures do not replace live gateway acceptance. No release or visibility changes without explicit user instruction.
+
+- Shared scrolling/control styles are in "src/Hikyaku.App/Theme/Styles.xaml"; "ScrollAssist.cs" passes nested wheel input outward at boundaries. Keep page content finite-width so wrapping works.

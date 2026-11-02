@@ -371,32 +371,47 @@ public static class UiAcceptance
         exercised.Add("running-filter-honest-note-screenshot");
         exercised.Add("maths-equations-screenshot");
 
-        vm.ShowInboxCommand.Execute(null);
-        vm.JobInboxShowAllResults = true;
+        // Exercise real Inbox projections against synthetic HTTP and stored-answer fixtures.
+        using (var inboxAuth = new DashboardAuth(new Uri("https://gateway.example/"), new InboxUiHandler()))
         {
-            // Stage 42: synthetic scheduled-job results (no gateway): a fresh result, a failed latest run, an older one.
-            var none = new RelayCommand(_ => { });
-            CronJob Job(string json) => CronJob.FromJson(System.Text.Json.JsonDocument.Parse(json).RootElement)!;
-            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            var digest = Job("""{"id":"a","name":"Morning summary","prompt":"p","state":"scheduled","profile":"default","last_status":"ok"}""");
-            var backup = Job("""{"id":"b","name":"Backup check","prompt":"p","state":"scheduled","profile":"default","last_status":"error","last_error":"synthetic"}""");
-            // 0.7.0: each row shows what the run found (an agent's answer, a script's output), unread marks and one result open in place.
-            var fresh = new JobResultVM(new JobResult(digest, new SessionSummary("r1", Preview: "/morning-summary", StartedAt: now - 600), false), "default", false, none, none, none, unread: true);
-            fresh.SetDetail(new RunText(RunStatus.Ok, "Synthetic: three things need you today.\n\n- Reply to the bank\n- Renew the domain\n- Call the plumber", null));
-            var failed = new JobResultVM(new JobResult(backup, new SessionSummary("cron_output:b:2026-10-28_06-00-00", Preview: "", Source: "cron_output", StartedAt: now - 7200), true), "default", false, none, none, none, unread: true);
-            failed.SetDetail(new RunText(RunStatus.Failed, "Synthetic: the backup target was not reachable.", "script failed"));
-            var open = new JobResultVM(new JobResult(digest, new SessionSummary("r3", Preview: "/morning-summary", StartedAt: now - 90000), false), "default", false, none, none, none);
-            open.SetDetail(new RunText(RunStatus.Ok, "Synthetic: a quiet day. **Nothing** needs you.", null));
-            open.IsExpanded = true;
-            foreach (var row in new[] { fresh, failed, open }) vm.JobResults.Add(row);
-            if (fresh.Excerpt.Contains("/morning-summary") || failed.StatusLabel != "Failed" || open.FullTextVisibility != Visibility.Visible)
-                throw new InvalidOperationException("HIKYAKU_UI_FAIL inbox rows: " + fresh.Excerpt + " / " + failed.StatusLabel);
+            vm.AttachCron(() => new CronApi(inboxAuth), "demo");
+            vm.AttachJobInbox(new JobInboxPrefs(new FilePreferenceStore(Path.Combine(App.DataDir, "acceptance-inbox-prefs.json"))));
+            vm.AttachJobRunDetails(new JobRunDetails((id, _, _, _) =>
+                Task.FromResult<IReadOnlyList<SessionMessage>>([
+                    new SessionMessage("1", "user", "/morning-summary"),
+                    new SessionMessage("2", "assistant", id == "r3" ? "Synthetic: a quiet day. Nothing needs you." : "Synthetic: three things need you today.\n\n- Review the weekly plan\n- Renew the example domain\n- Check the backup")]), () => null),
+                new InboxReadStore(new FilePreferenceStore(Path.Combine(App.DataDir, "acceptance-inbox-reads.json"))));
+            await vm.RefreshJobInboxAsync();
+            vm.Nav = MainNav.Inbox;
+            vm.JobInboxShowAllResults = true;
+            for (var i = 0; i < 100 && vm.JobResults.Any(r => !r.HasDetail); i++) await Task.Delay(20);
+            if (vm.JobResults.Count != 3 || vm.JobResults.Any(r => !r.HasDetail)) throw new InvalidOperationException("Inbox fixtures did not settle.");
+            vm.JobResults[0].OpenCommand.Execute(null);
+            window.UpdateLayout();
+            Capture(window, Path.Combine(outDir, "05-inbox.png"));
+            vm.SetJobInboxFilterCommand.Execute("failed");
+            if (vm.JobResults.Count != 1 || vm.JobResults[0].StatusLabel != "Failed") throw new InvalidOperationException("Failed Inbox filter did not isolate the failed result.");
+            Capture(window, Path.Combine(outDir, "05a-inbox-failed.png"));
+            vm.ClearJobInboxFiltersCommand.Execute(null);
+            vm.JobInboxSearch = "weekly plan";
+            if (vm.JobResults.Count != 1) throw new InvalidOperationException("Inbox answer search did not match the available text.");
+            vm.ClearJobInboxFiltersCommand.Execute(null);
+            var prompt = vm.PromptText;
+            try
+            {
+                vm.PromptText = (_, _) => "Personal";
+                vm.CreateInboxFolderCommand.Execute(null);
+                for (var i = 0; i < 100 && !vm.JobInboxFolders.Any(f => f.Name == "Personal"); i++) await Task.Delay(20);
+                if (!vm.JobInboxFolders.Any(f => f.Name == "Personal")) throw new InvalidOperationException("Empty Inbox folder was not created.");
+                Capture(window, Path.Combine(outDir, "05b-inbox-folders.png"));
+            }
+            finally { vm.PromptText = prompt; }
+            vm.JobInboxShowAllResults = true;
+            vm.AttachCron(() => null, "demo");
         }
-        window.UpdateLayout();
-        Capture(window, Path.Combine(outDir, "05-inbox.png"));
-        vm.JobResults.Clear();
         exercised.Add("inbox-nav");
-
+        exercised.Add("inbox-failed-filter-and-answer-search");
+        exercised.Add("inbox-create-empty-custom-folder");
         vm.ShowNeedsYouCommand.Execute(null);
         Capture(window, Path.Combine(outDir, "06-needs-you.png"));
         exercised.Add("needs-you-nav");
@@ -615,6 +630,7 @@ public static class UiAcceptance
             RunGitAcceptance(gitRoot, "remote", "add", "origin", bare);
             await vm.AcceptancePreviewPushAsync();
             window.UpdateLayout();
+            ShowProjectSection(window, "Publish to GitHub");
             Capture(window, Path.Combine(outDir, "15b-projects-git-push-preview.png"));
             exercised.Add("push-preview-command:" + (vm.PreviewPushCommand is not null));
             exercised.Add("confirm-push-command:" + (vm.ConfirmPushCommand is not null));
@@ -627,6 +643,7 @@ public static class UiAcceptance
             exercised.Add("terminal-no-auto-launch:" + (!TerminalLaunchPolicy.MayAutoStartFromSavedPreference));
             if (vm.EnableTerminalOptInCommand is not null)
             {
+                ShowProjectSection(window, "Terminal options");
                 Capture(window, Path.Combine(outDir, "16-projects-terminal-optin-off.png"));
                 exercised.Add("terminal-optin-command-present");
                 exercised.Add("terminal-drawer-closed-default:" + (vm.TerminalDrawerVisibility == Visibility.Collapsed));
@@ -849,6 +866,42 @@ public static class UiAcceptance
         return flagged;
     }
 
+    private sealed class InboxUiHandler : System.Net.Http.HttpMessageHandler
+    {
+        protected override Task<System.Net.Http.HttpResponseMessage> SendAsync(System.Net.Http.HttpRequestMessage request, CancellationToken ct)
+        {
+            var path = request.RequestUri!.AbsolutePath;
+            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var json = path.EndsWith("/jobs", StringComparison.Ordinal)
+                ? """[{"id":"summary","name":"Morning summary","prompt":"p","state":"scheduled","profile":"default"},{"id":"backup","name":"Backup check","prompt":"p","state":"scheduled","profile":"default","last_status":"error"}]"""
+                : path.Contains("/summary/runs", StringComparison.Ordinal)
+                    ? $$"""{"runs":[{"id":"r1","source":"cron","started_at":{{now - 600}}},{"id":"r3","source":"cron","started_at":{{now - 90000}}}]}"""
+                    : path.Contains("/backup/runs", StringComparison.Ordinal)
+                        ? $$"""{"runs":[{"id":"cron_output:backup:2030-01-01_06-00-00","source":"cron_output","preview":"Synthetic: the backup target was not reachable.","started_at":{{now - 7200}}}]}"""
+                        : "[]";
+            return Task.FromResult(new System.Net.Http.HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            { Content = new System.Net.Http.StringContent(json, Encoding.UTF8, "application/json") });
+        }
+    }
+
+    private static IEnumerable<T> Elements<T>(DependencyObject parent) where T : DependencyObject
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T typed) yield return typed;
+            foreach (var nested in Elements<T>(child)) yield return nested;
+        }
+    }
+
+    private static void ShowProjectSection(MainWindow window, string header)
+    {
+        var section = Elements<System.Windows.Controls.Expander>(window.ProjectsScroller).Single(e => Equals(e.Header, header));
+        section.IsExpanded = true;
+        window.UpdateLayout();
+        section.BringIntoView();
+        window.UpdateLayout();
+    }
     private static void Capture(FrameworkElement element, string path)
     {
         element.UpdateLayout();
@@ -860,6 +913,20 @@ public static class UiAcceptance
         encoder.Frames.Add(BitmapFrame.Create(rtb));
         using var fs = File.Create(path);
         encoder.Save(fs);
+        // Inspect each main page at a constrained width as well as the normal desktop capture.
+        var pageName = Path.GetFileNameWithoutExtension(path);
+        if (element is MainWindow window && new[] { "05-inbox", "05b-scheduled", "05c-capabilities", "05d-insights", "05d-rooms", "05e-artifacts", "05f-journey", "06-needs-you", "13-projects-granted", "09-bots-roster" }.Contains(pageName))
+        {
+            var desktopWidth = window.Width;
+            window.AcceptanceSetWidth(780);
+            window.UpdateLayout();
+            Capture(window, Path.Combine(Path.GetDirectoryName(path)!, pageName + "-narrow.png"));
+            var overflow = CheckHorizontalOverflow(window);
+            File.AppendAllLines(Path.Combine(Path.GetDirectoryName(path)!, "LAYOUT-AUDIT.txt"),
+                new[] { $"{pageName}: width=780 overflow={overflow}" }.Concat(FlaggedOverflow));
+            window.AcceptanceSetWidth(desktopWidth);
+            window.UpdateLayout();
+        }
     }
 
     private static void RunGitAcceptance(string cwd, params string[] args)

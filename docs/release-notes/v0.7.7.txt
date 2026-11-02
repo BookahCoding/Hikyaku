@@ -1,0 +1,7 @@
+﻿Hikyaku 0.7.7
+
+- Organize Inbox results with filters, search and your own folders.
+- Scroll Settings naturally and find Light, Dark and System above the theme gallery.
+- All themes use neutral off-white or black surfaces with two accents across controls and visible scrollbars.
+- Clearer Scheduled jobs, Capabilities and Projects layouts.
+- Better wrapping, navigation, keyboard actions and empty states throughout the app.
