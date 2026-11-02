@@ -5,7 +5,7 @@ using Microsoft.Win32;
 
 namespace Hikyaku.App;
 
-/// <summary>Applies Hokusai theme family + light/dark/system into live brushes; respects reduced motion / high contrast.</summary>
+/// <summary>Applies a theme + light/dark/system into live brushes; respects reduced motion / high contrast.</summary>
 public static class ThemeService
 {
     public static string ThemeId { get; private set; } = "washi-ink";
@@ -61,17 +61,21 @@ public static class ThemeService
     {
         var app = Application.Current;
         if (app?.Resources is null) return;
+        ApplyPalette(app.Resources, s, HighContrast, IsLight, PanelDuration);
+    }
 
+    internal static void ApplyPalette(ResourceDictionary resources, ThemeSurfaces s, bool highContrast, bool isLight, TimeSpan panelDuration)
+    {
         void Set(string key, string hex)
         {
             var color = ParseColor(hex);
-            if (HighContrast && (key is "Brush.Border" or "Brush.Text" or "Brush.Accent"))
+            if (highContrast && (key is "Brush.Border" or "Brush.Text" or "Brush.Accent"))
             {
                 // Strengthen borders / keep text crisp under OS high contrast without inventing a fifth theme.
                 if (key == "Brush.Border")
-                    color = IsLight ? Color.FromRgb(0x10, 0x10, 0x10) : Color.FromRgb(0xF0, 0xF0, 0xF0);
+                    color = isLight ? Color.FromRgb(0x10, 0x10, 0x10) : Color.FromRgb(0xF0, 0xF0, 0xF0);
             }
-            app.Resources[key] = new SolidColorBrush(color);
+            resources[key] = new SolidColorBrush(color);
         }
 
         Set("Brush.Bg", s.Bg);
@@ -85,13 +89,15 @@ public static class ThemeService
         Set("Brush.TextMuted", s.TextMuted);
         Set("Brush.Accent", s.Accent);
         Set("Brush.OnAccent", s.OnAccent);
+        Set("Brush.Secondary", s.EffectiveSecondary);
+        Set("Brush.OnSecondary", s.EffectiveOnSecondary);
         Set("Brush.Border", s.Border);
         Set("Brush.Danger", s.Danger);
         Set("Brush.Success", s.Success);
         Set("Brush.Warning", s.Warning);
         Set("Brush.MarkVermilion", s.MarkVermilion);
         Set("Brush.MarkPaper", s.MarkPaper);
-        app.Resources["Duration.Panel"] = PanelDuration;
+        resources["Duration.Panel"] = panelDuration;
     }
 
     public static Color ParseColor(string hex)

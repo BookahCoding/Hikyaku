@@ -6,6 +6,7 @@ are `vMAJOR.MINOR.PATCH`.
 ## Unreleased
 
 - The model picker merges gateway rows with the same provider id, keeping the user's Custom catalog when a keyless stub comes first. Models, featured choices, and available pricing are preserved.
+- Shibuya Night (magenta and cyan) and Akihabara (electric green and violet): two Tokyo-neon themes with Light, Dark, and System appearance. The theme picker previews both accents; selected navigation, unread dots, and link text use the secondary colour.
 
 ## 0.7.4 — Irises theme
 

@@ -56,6 +56,8 @@
   <SolidColorBrush x:Key="Brush.TextMuted" Color="{StaticResource Color.TextMuted}"/>
   <SolidColorBrush x:Key="Brush.Accent" Color="{StaticResource Color.Accent}"/>
   <SolidColorBrush x:Key="Brush.OnAccent" Color="{StaticResource Color.OnAccent}"/>
+  <SolidColorBrush x:Key="Brush.Secondary" Color="{StaticResource Color.Accent}"/>
+  <SolidColorBrush x:Key="Brush.OnSecondary" Color="{StaticResource Color.OnAccent}"/>
   <SolidColorBrush x:Key="Brush.Border" Color="{StaticResource Color.Border}"/>
   <SolidColorBrush x:Key="Brush.Danger" Color="{StaticResource Color.Danger}"/>
   <SolidColorBrush x:Key="Brush.Success" Color="{StaticResource Color.Success}"/>

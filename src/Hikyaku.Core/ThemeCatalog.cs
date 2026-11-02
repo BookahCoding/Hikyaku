@@ -1,13 +1,18 @@
 namespace Hikyaku.Core;
 
 /// <summary>
-/// Hokusai-inspired theme options (approximate tokens — not measured artworks).
+/// Hokusai-inspired and Tokyo-neon theme options (approximate tokens — not measured artworks).
 /// Light/dark pairs share one palette family; no unrelated bright presets.
 /// </summary>
 public sealed record ThemeSurfaces(
     string Bg, string Surface, string SurfaceSidebar, string SurfaceRaised, string Surface3, string Well,
     string Text, string Text2, string TextMuted, string Accent, string OnAccent, string Border,
-    string Danger, string Success, string Warning, string MarkVermilion, string MarkPaper);
+    string Danger, string Success, string Warning, string MarkVermilion, string MarkPaper,
+    string? Secondary = null, string? OnSecondary = null)
+{
+    public string EffectiveSecondary => Secondary ?? Accent;
+    public string EffectiveOnSecondary => OnSecondary ?? OnAccent;
+}
 
 public sealed record ThemeDefinition(string Id, string DisplayName, string InspirationNote, ThemeSurfaces Light, ThemeSurfaces Dark);
 
@@ -154,6 +159,33 @@ public static class ThemeCatalog
                 Bg: "#251730", Surface: "#2C1D38", SurfaceSidebar: "#21142C", SurfaceRaised: "#352343", Surface3: "#402D4F", Well: "#281932",
                 Text: "#F6EFFB", Text2: "#E5D6EF", TextMuted: "#C4ACD4", Accent: "#C0A0F0", OnAccent: "#21142C", Border: "#40F6EFFB",
                 Danger: "#FFAFC3", Success: "#A5D9B0", Warning: "#EFD58D", MarkVermilion: "#EA9A7F", MarkPaper: "#F6EFFB")),
+        // Ported from Herald Themes.kt @ 5227112f (MIT): crossing signs on violet night, magenta + cyan.
+        new("shibuya-night", "Shibuya Night",
+            "Tokyo crossing after dark: magenta signs, cyan light, and near-black violet (Herald Shibuya Night).",
+            Light: new ThemeSurfaces(
+                Bg: "#F6F1FF", Surface: "#FCF9FF", SurfaceSidebar: "#F1EAFD", SurfaceRaised: "#EDE5FB", Surface3: "#E2D8F6", Well: "#F1EAFD",
+                Text: "#1B1233", Text2: "#2C2250", TextMuted: "#5A4E7C", Accent: "#A9136A", OnAccent: "#FFFFFF", Border: "#201B1233",
+                Danger: "#B3202B", Success: "#1F6B55", Warning: "#855608", MarkVermilion: "#A9136A", MarkPaper: "#FCF9FF",
+                Secondary: "#00677B", OnSecondary: "#FFFFFF"),
+            Dark: new ThemeSurfaces(
+                Bg: "#0A0716", Surface: "#130E26", SurfaceSidebar: "#070510", SurfaceRaised: "#1B1535", Surface3: "#261E48", Well: "#070510",
+                Text: "#F3EEFF", Text2: "#DAD2F0", TextMuted: "#B1A6D1", Accent: "#FF7CC0", OnAccent: "#0A0A0C", Border: "#33F3EEFF",
+                Danger: "#FF6B6B", Success: "#3EE0B0", Warning: "#FFC857", MarkVermilion: "#FF7CC0", MarkPaper: "#F3EEFF",
+                Secondary: "#22E3FF", OnSecondary: "#0A0A0C")),
+
+        // Herald's electric-town pair: sign green + violet against black-blue.
+        new("akihabara", "Akihabara",
+            "Tokyo electric town: green neon, violet signs, and black-blue streets (Herald Akihabara).",
+            Light: new ThemeSurfaces(
+                Bg: "#EEF2F5", Surface: "#F8FAFC", SurfaceSidebar: "#E8EDF1", SurfaceRaised: "#E3E9EE", Surface3: "#D6DFE6", Well: "#E8EDF1",
+                Text: "#0E1A24", Text2: "#1E2D3A", TextMuted: "#48596A", Accent: "#06703A", OnAccent: "#FFFFFF", Border: "#200E1A24",
+                Danger: "#B3202B", Success: "#0B6B3A", Warning: "#855608", MarkVermilion: "#06703A", MarkPaper: "#F8FAFC",
+                Secondary: "#5A2DD0", OnSecondary: "#FFFFFF"),
+            Dark: new ThemeSurfaces(
+                Bg: "#060B12", Surface: "#0C1520", SurfaceSidebar: "#04080D", SurfaceRaised: "#12202F", Surface3: "#1A2D42", Well: "#04080D",
+                Text: "#E9F4F1", Text2: "#CFE0DC", TextMuted: "#9FB4B0", Accent: "#2BE37A", OnAccent: "#0A0A0C", Border: "#33E9F4F1",
+                Danger: "#FF6B7A", Success: "#2BE37A", Warning: "#FFC857", MarkVermilion: "#2BE37A", MarkPaper: "#E9F4F1",
+                Secondary: "#A080FF", OnSecondary: "#0A0A0C")),
     ];
 
     public static ThemeDefinition Get(string id) =>

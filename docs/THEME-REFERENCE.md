@@ -98,6 +98,25 @@ Shipped as approximate token families (not measured artworks), each with light +
 
 Catalog + contrast ratios (≥4.5 text/bg) live in `ThemeCatalog` (Core); WPF applies via `ThemeService`. Synthetic UI acceptance captures every family × light/dark.
 
+## Tokyo neon — two accent colours
+
+Port source: [Herald / Hikyaku for Android, commit 5227112f](https://github.com/BookahCoding/Hikyaku-for-Android/blob/5227112f0bfccdcd5528c3f69aa474ee069e899c/shared/designsystem/src/commonMain/kotlin/dev/hermeskotlin/designsystem/Themes.kt), MIT.
+Existing theme families and saved ids remain available. The two new families are city-inspired rather than woodblock-inspired.
+
+| Theme | Light accents | Dark accents | Ground |
+|---|---|---|---|
+| Shibuya Night (`shibuya-night`) | `#A9136A` / `#00677B` | `#FF7CC0` / `#22E3FF` | Violet paper / near-black violet |
+| Akihabara (`akihabara`) | `#06703A` / `#5A2DD0` | `#2BE37A` / `#A080FF` | Cool paper / black-blue |
+
+Primary actions use the first colour. Selected navigation text, Inbox unread markers, code-copy links, and displayed web-link
+text use the second. Link text remains non-clickable as before. All brush references update with the live theme preview.
+The gallery shows both accents in both modes. Light variants deepen the neon hues for readable text on pale surfaces;
+Dark variants use saturated sign colours, with no animated glow. System appearance resolves through the existing setting.
+
+`ThemeSurfaces.Secondary` and `OnSecondary` are optional. Existing families resolve them to their primary accent and label
+colour. Tests check both neon accents, all text and status colours against all six surfaces at ≥4.5:1, and both accent label
+pairs at ≥4.5:1. WPF tests cover brush application, both gallery colours, fallback to an older theme, and live link recolouring.
+
 ## Irises — ninth family
 
 Inspiration: Hokusai, *Irises and grasshopper*, c. 1833–34, a colour woodblock print in the ukiyo-e tradition;
