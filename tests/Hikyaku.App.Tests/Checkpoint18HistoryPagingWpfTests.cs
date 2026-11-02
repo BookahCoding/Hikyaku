@@ -353,6 +353,40 @@ public class Checkpoint18HistoryPagingWpfTests
         });
     }
 
+    [Fact]
+    public void A_cancelled_earlier_load_can_be_retried_without_losing_messages()
+    {
+        RunSta(() =>
+        {
+            var f = Make(300);
+            Open(f);
+            f.Server.Throw = new OperationCanceledException();
+            Await(RunCommand(f.Vm.LoadEarlierCommand!));
+            Assert.False(f.Vm.SelectedConversation!.LoadingEarlier);
+            Assert.True(f.Vm.LoadEarlierCommand!.CanExecute(null));
+            Assert.Equal(60, f.Vm.Messages.Count);
+            f.Server.Throw = null;
+            Await(RunCommand(f.Vm.LoadEarlierCommand));
+            Assert.Equal(160, f.Vm.Messages.Count);
+        });
+    }
+
+    [Fact]
+    public void A_partial_final_page_respects_the_loaded_row_limit()
+    {
+        RunSta(() =>
+        {
+            var f = Make(1000);
+            f.Vm.MaxLoadedRows = 175;
+            Open(f);
+            Await(RunCommand(f.Vm.LoadEarlierCommand!));
+            Await(RunCommand(f.Vm.LoadEarlierCommand!));
+            Assert.Equal(175, f.Vm.Messages.Count);
+            Assert.Equal((160, 15), (f.Server.Calls[2].Offset, f.Server.Calls[2].Limit));
+            Assert.Equal(Visibility.Collapsed, f.Vm.LoadEarlierVisibility);
+            Assert.Contains("very long", f.Vm.RewindNotice);
+        });
+    }
     // ---- helpers ---------------------------------------------------------------------------------
 
     private static Task RunCommand(System.Windows.Input.ICommand cmd)

@@ -240,8 +240,12 @@ public sealed partial class MainViewModel
         catch (RpcException ex)
         {
             RemoveBubble(convo, bubble);
-            InputText = text;                        // the user's words are not lost
-            SetRewindNotice("Couldn't steer the reply: " + ex.Message);
+            if (SelectedConversation == convo)
+            {
+                GiveBackToComposer(new[] { text });
+                SetRewindNotice("Couldn't steer the reply: " + ex.Message);
+            }
+            else convo.UnsentFromQueue.Add(text);
             return;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -259,7 +263,7 @@ public sealed partial class MainViewModel
                     // What streamed so far stays above; the rest of the turn continues below the steer text.
                     var next = new MessageVM("Assistant");
                     convo.History.Add(next);
-                    Messages.Add(next);
+                    if (SelectedConversation == convo) Messages.Add(next);
                     RelayoutQueueBubbles(convo);
                     turn.Swap(next);
                 }

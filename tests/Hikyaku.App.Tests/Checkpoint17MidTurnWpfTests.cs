@@ -79,14 +79,14 @@ public class Checkpoint17MidTurnWpfTests
         public IEnumerable<string> Texts => Vm.Messages.Select(m => m.Text);
     }
 
-    private static Fixture Make()
+    private static Fixture Make(DraftStore? drafts = null)
     {
         var t = new Script();
         var peer = new EventPeer();
         var selection = new ProfileSelectionService(new MemPrefs());
         selection.SetSelectedAsync(new[] { new ProfileKey("demo", "default") }).GetAwaiter().GetResult();
         var vm = new MainViewModel(selection, new NotificationGate(selection), () => t, () => "t",
-            () => null, () => null, () => null, () => null, () => null, () => null, () => null, () => null, rpc: () => peer);
+            () => null, () => null, () => null, () => drafts, () => null, () => null, () => null, () => null, rpc: () => peer);
         vm.NewChat();
         var convo = vm.SelectedConversation!;
         convo.SessionId = "rt1";
@@ -106,6 +106,176 @@ public class Checkpoint17MidTurnWpfTests
         f.Vm.InputText = text;
         f.Vm.SendCommand.Execute(null);
         Pump(150);
+    }
+
+    private sealed class GatedPrefs : IPreferenceStore
+    {
+        public string? Content;
+        public Task? LoadGate;
+        public Task? SaveGate;
+        public async Task<string?> LoadAsync(CancellationToken ct = default)
+        {
+            var content = Content;
+            if (LoadGate is { } gate) await gate;
+            return content;
+        }
+        public async Task SaveAsync(string content, CancellationToken ct = default)
+        {
+            if (SaveGate is { } gate) await gate;
+            Content = content;
+        }
+    }
+
+    [Fact]
+    public void Drafts_stay_with_their_chat_and_profile()
+    {
+        RunSta(() =>
+        {
+            var f = Make();
+            f.Vm.InputText = "first draft";
+            f.Vm.NewChat();
+            var second = f.Vm.SelectedConversation!;
+            Assert.Equal("", f.Vm.InputText);
+            f.Vm.InputText = "second draft";
+            f.Vm.SelectedConversation = new ConversationVM(new ProfileKey("other.example", "other"), "other");
+            Assert.Equal("", f.Vm.InputText);
+            f.Vm.InputText = "other draft";
+            f.Vm.SelectedConversation = f.Convo;
+            Assert.Equal("first draft", f.Vm.InputText);
+            f.Vm.SelectedConversation = second;
+            Assert.Equal("second draft", f.Vm.InputText);
+        });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Late_disk_draft_cannot_fill_another_chat_or_resurrect_cleared_text(bool clear)
+    {
+        RunSta(() =>
+        {
+            var prefs = new GatedPrefs();
+            var drafts = new DraftStore(prefs);
+            drafts.SetAsync(new ProfileKey("demo", "default"), "disk draft").GetAwaiter().GetResult();
+            var gate = Hold();
+            prefs.LoadGate = gate.Task;
+            var f = Make(drafts);
+            if (clear) { f.Vm.InputText = "new text"; f.Vm.InputText = ""; }
+            else f.Vm.NewChat();
+            gate.SetResult();
+            Pump(200);
+            Assert.Equal("", f.Vm.InputText);
+            if (!clear)
+            {
+                Assert.Equal("disk draft", drafts.GetAsync(f.Convo.Profile).GetAwaiter().GetResult());
+                f.Vm.SelectedConversation = f.Convo;
+                Assert.Equal("disk draft", f.Vm.InputText);
+                Pump(80);
+                Assert.Equal("disk draft", drafts.GetAsync(f.Convo.Profile).GetAwaiter().GetResult());
+            }
+        });
+    }
+
+    [Fact]
+    public void Disk_draft_is_seeded_once_and_does_not_transfer_to_new_chats()
+    {
+        RunSta(() =>
+        {
+            var prefs = new GatedPrefs();
+            var drafts = new DraftStore(prefs);
+            drafts.SetAsync(new ProfileKey("demo", "default"), "disk draft").GetAwaiter().GetResult();
+            var f = Make(drafts);
+            Pump(80);
+            Assert.Equal("disk draft", f.Vm.InputText);
+            f.Vm.NewChat();
+            Pump(80);
+            Assert.Equal("", f.Vm.InputText);
+            f.Vm.SelectedConversation = f.Convo;
+            Assert.Equal("disk draft", f.Vm.InputText);
+            Pump(80);
+            Assert.Equal("disk draft", drafts.GetAsync(f.Convo.Profile).GetAwaiter().GetResult());
+        });
+    }
+
+    [Fact]
+    public void Slow_draft_save_does_not_delay_claiming_a_send_or_paint_it_in_another_chat()
+    {
+        RunSta(() =>
+        {
+            var prefs = new GatedPrefs();
+            var f = Make(new DraftStore(prefs));
+            Pump(40);
+            var save = Hold();
+            prefs.SaveGate = save.Task;
+            var turn = Hold();
+            FirstTurnHolds(f, turn);
+            f.Vm.InputText = "first";
+            f.Vm.SendCommand.Execute(null);
+            Assert.Equal("Steer", f.Vm.SendLabel);
+            f.Vm.SendCommand.Execute(null);
+            f.Vm.NewChat();
+            save.SetResult();
+            Pump(150);
+            Assert.Empty(f.Vm.Messages);
+            Assert.Single(f.T.Requests);
+            Assert.Single(f.Convo.History, m => m.Role == "You");
+            turn.SetResult();
+            Pump(150);
+        });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Late_steer_rejection_keeps_newer_text_and_returns_words_to_the_origin(bool switchChat)
+    {
+        RunSta(() =>
+        {
+            var f = Make();
+            var turn = Hold();
+            FirstTurnHolds(f, turn);
+            StartFirst(f);
+            var steer = Hold();
+            f.T.SteerGate = steer.Task;
+            f.T.SteerThrow = new RpcException(5000, "refused");
+            f.Vm.InputText = "rejected words";
+            f.Vm.SendCommand.Execute(null);
+            if (switchChat) f.Vm.NewChat();
+            f.Vm.InputText = "newer draft";
+            steer.SetResult();
+            Pump(120);
+            Assert.StartsWith("newer draft", f.Vm.InputText);
+            if (switchChat)
+            {
+                Assert.Empty(f.Vm.Messages);
+                f.Vm.SelectedConversation = f.Convo;
+            }
+            Assert.Contains("rejected words", f.Vm.InputText);
+            turn.SetResult();
+            Pump(150);
+        });
+    }
+
+    [Fact]
+    public void Late_accepted_steer_does_not_insert_a_reply_in_another_chat()
+    {
+        RunSta(() =>
+        {
+            var f = Make();
+            var turn = Hold();
+            FirstTurnHolds(f, turn);
+            StartFirst(f);
+            var steer = Hold();
+            f.T.SteerGate = steer.Task;
+            f.Vm.InputText = "steer";
+            f.Vm.SendCommand.Execute(null);
+            f.Vm.NewChat();
+            steer.SetResult();
+            Pump(120);
+            Assert.Empty(f.Vm.Messages);
+            turn.SetResult();
+            Pump(150);
+        });
     }
 
     // ---- state -----------------------------------------------------------------------------------

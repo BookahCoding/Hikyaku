@@ -45,7 +45,7 @@ public sealed partial class MainViewModel
 
     private bool CanLoadEarlier() =>
         !_busy && SelectedConversation is { HasEarlier: true, LoadingEarlier: false, OfflineStale: false, StoredSessionId: { Length: > 0 } }
-        && _sessions() is not null;
+        && SelectedConversation.RawRowsLoaded < MaxLoadedRows && _sessions() is not null;
 
     private void RaiseEarlierState()
     {
@@ -62,18 +62,19 @@ public sealed partial class MainViewModel
         SetRewindNotice("");
 
         var offset = convo.RawRowsLoaded;
+        var limit = Math.Min(EarlierPageSize, MaxLoadedRows - offset);
         convo.LoadingEarlier = true;
         RaiseEarlierState();
         SessionMessagesPage page;
         try
         {
-            page = await catalog.LoadMessagesPageAsync(convo.Profile, convo.StoredSessionId!, offset, EarlierPageSize).ConfigureAwait(true);
+            page = await catalog.LoadMessagesPageAsync(convo.Profile, convo.StoredSessionId!, offset, limit).ConfigureAwait(true);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex)
         {
             convo.LoadingEarlier = false;
             RaiseEarlierState();
-            if (SelectedConversation == convo) SetRewindNotice("Couldn't load earlier messages: " + ex.Message);
+            if (SelectedConversation == convo && ex is not OperationCanceledException) SetRewindNotice("Couldn't load earlier messages: " + ex.Message);
             return;
         }
         convo.LoadingEarlier = false;
@@ -85,7 +86,7 @@ public sealed partial class MainViewModel
         var fresh = page.Messages.Where(r => HistoryMapping.ParseRowId(r.Id) is not { } id || !known.Contains(id));
         var mapped = HistoryMapping.ToMessages(fresh);
         convo.RawRowsLoaded += page.Messages.Count;
-        convo.HasEarlier = page.Messages.Count >= EarlierPageSize && convo.RawRowsLoaded < MaxLoadedRows;
+        convo.HasEarlier = page.Messages.Count >= limit && convo.RawRowsLoaded < MaxLoadedRows;
 
         var anchor = convo.History.FirstOrDefault();
         convo.History.InsertRange(0, mapped);
@@ -93,7 +94,7 @@ public sealed partial class MainViewModel
         if (visible)
         {
             for (var i = 0; i < mapped.Count; i++) Messages.Insert(i, mapped[i]);
-            if (!convo.HasEarlier && page.Messages.Count >= EarlierPageSize)
+            if (!convo.HasEarlier && page.Messages.Count >= limit)
                 SetRewindNotice("This chat is very long: the earliest messages are not loaded here, to keep the window responsive.");
         }
         RaiseEarlierState();

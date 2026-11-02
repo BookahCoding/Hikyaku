@@ -5,6 +5,10 @@ are `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- Chat drafts stay with their conversation when switching chats or profiles; delayed draft loading cannot overwrite newly typed text.
+- Sending and steering keep messages in the originating chat even when local storage or a gateway response is slow.
+- A canceled earlier-history load can be retried, and the last page respects the loaded-message limit.
+
 ## 0.7.5 — Tokyo neon themes and complete custom model catalogs
 
 - The model picker merges gateway rows with the same provider id, keeping the user's Custom catalog when a keyless stub comes first. Models, featured choices, and available pricing are preserved.
