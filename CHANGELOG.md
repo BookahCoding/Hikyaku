@@ -5,6 +5,8 @@ are `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- The model picker merges gateway rows with the same provider id, keeping the user's Custom catalog when a keyless stub comes first. Models, featured choices, and available pricing are preserved.
+
 ## 0.7.4 — Irises theme
 
 - Irises: a ninth Hokusai-inspired theme, with iris violet on lavender paper in Light and pale violet on aubergine in Dark. Choose it in Settings → Appearance; System follows the Windows appearance when applied.
