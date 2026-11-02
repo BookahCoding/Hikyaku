@@ -765,7 +765,7 @@
                           AutomationProperties.Name="Hide this job">
                     <TextBlock Style="{StaticResource IconGlyph}" FontSize="11" Text="&#xE711;"/>
                   </Button>
-                  <Ellipse DockPanel.Dock="Left" Width="7" Height="7" Fill="{DynamicResource Brush.Accent}" Margin="0,7,8,0" VerticalAlignment="Top"
+                  <Ellipse DockPanel.Dock="Left" Width="7" Height="7" Fill="{DynamicResource Brush.Secondary}" Margin="0,7,8,0" VerticalAlignment="Top"
                            Visibility="{Binding UnreadVisibility}" AutomationProperties.Name="Unread"/>
                   <StackPanel>
                     <DockPanel>

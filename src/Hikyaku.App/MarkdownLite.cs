@@ -88,6 +88,7 @@ public static partial class MarkdownLite
                 para.FontSize = 12.5;
                 para.Inlines.Add(new Run(codeText));
                 var copy = new Hyperlink(new Run(" Copy")) { FontSize = 11 };
+                copy.SetResourceReference(TextElement.ForegroundProperty, "Brush.Secondary");
                 var captured = codeText;
                 copy.Click += (_, _) =>
                 {
@@ -296,7 +297,11 @@ public static partial class MarkdownLite
                 var href = nextInline.Groups["href"].Value;
                 if (href.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
                     href.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-                    span.Inlines.Add(new Run($"{label} ({href})"));
+                {
+                    var linkText = new Run($"{label} ({href})");
+                    linkText.SetResourceReference(TextElement.ForegroundProperty, "Brush.Secondary");
+                    span.Inlines.Add(linkText);
+                }
                 else
                     span.Inlines.Add(new Run(label));
             }

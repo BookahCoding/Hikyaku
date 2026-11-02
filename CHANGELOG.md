@@ -5,6 +5,8 @@ are `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- Shibuya Night (magenta and cyan) and Akihabara (electric green and violet): two Tokyo-neon themes with Light, Dark, and System appearance. The theme picker previews both accents; selected navigation, unread dots, and link text use the secondary colour.
+
 ## 0.7.4 — Irises theme
 
 - Irises: a ninth Hokusai-inspired theme, with iris violet on lavender paper in Light and pale violet on aubergine in Dark. Choose it in Settings → Appearance; System follows the Windows appearance when applied.

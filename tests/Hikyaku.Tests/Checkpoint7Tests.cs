@@ -11,14 +11,14 @@ namespace Hikyaku.Tests;
 public class Checkpoint7ThemeTests
 {
     [Fact]
-    public void ThemeCatalog_Exposes_Nine_Hokusai_Palettes()
+    public void ThemeCatalog_Exposes_Eleven_Palettes()
     {
         var ids = ThemeCatalog.All.Select(t => t.Id).ToArray();
-        Assert.Equal(new[] { "washi-ink", "great-wave", "red-fuji", "pine-mist", "chrysanthemum", "peony", "kirifuri", "thunderstorm", "irises" }, ids);
+        Assert.Equal(new[] { "washi-ink", "great-wave", "red-fuji", "pine-mist", "chrysanthemum", "peony", "kirifuri", "thunderstorm", "irises", "shibuya-night", "akihabara" }, ids);
         Assert.All(ThemeCatalog.All, t =>
         {
             Assert.False(string.IsNullOrWhiteSpace(t.DisplayName));
-            Assert.Contains("Hokusai", t.InspirationNote, StringComparison.OrdinalIgnoreCase);
+            Assert.False(string.IsNullOrWhiteSpace(t.InspirationNote));
             Assert.NotNull(t.Light);
             Assert.NotNull(t.Dark);
             Assert.True(ContrastRatio(t.Light.Text, t.Light.Bg) >= 4.5, t.Id + " light text/bg");

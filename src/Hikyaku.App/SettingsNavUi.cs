@@ -13,9 +13,12 @@ public sealed class ThemeSwatch(ThemeDefinition theme)
     public Brush LightBackground { get; } = Solid(theme.Light.Bg);
     public Brush LightText { get; } = Solid(theme.Light.Text);
     public Brush LightAccent { get; } = Solid(theme.Light.Accent);
+    public Brush LightSecondary { get; } = Solid(theme.Light.EffectiveSecondary);
     public Brush DarkBackground { get; } = Solid(theme.Dark.Bg);
     public Brush DarkText { get; } = Solid(theme.Dark.Text);
     public Brush DarkAccent { get; } = Solid(theme.Dark.Accent);
+    public Brush DarkSecondary { get; } = Solid(theme.Dark.EffectiveSecondary);
+    public Visibility SecondaryVisibility => theme.Light.Secondary is not null || theme.Dark.Secondary is not null ? Visibility.Visible : Visibility.Collapsed;
 
     private static Brush Solid(string hex)
     {

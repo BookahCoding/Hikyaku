@@ -14,4 +14,4 @@ Contact: bookahgamer@gmail.com
 - .NET 9 runtime, WPF and the Windows SDK projection (Microsoft) — MIT, bundled in the self-contained release zip (notices: https://github.com/dotnet/runtime and https://github.com/dotnet/wpf).
 - Build and test only, never shipped: xUnit (Apache-2.0), Microsoft.NET.Test.Sdk and Newtonsoft.Json (MIT).
 - The release zip carries `LICENSE`, this file and the `THIRD-PARTY-*` notices in a `licenses` folder.
-- Theme families are Hokusai-inspired approximate tokens, not measured reproductions of specific artworks. Public-domain or licensed art only when assets are added; no image-search thumbnails ship in this client.
+- Theme families include Hokusai-inspired approximate tokens and Tokyo neon. Shibuya Night and Akihabara adapt the MIT-licensed Herald themes (`BookahCoding/Hikyaku-for-Android`, commit `5227112f0bfccdcd5528c3f69aa474ee069e899c`, `Themes.kt`); the Herald MIT notice above applies. No image-search thumbnails ship in this client.
