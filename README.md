@@ -6,7 +6,10 @@ dashboard over the network; it does not run an agent itself.
 
 It is an independent, community-built client. It is not made by or affiliated with Nous Research.
 
-![A chat in Hikyaku](docs/images/chat.png)
+![A chat in Hikyaku, Advanced view with Washi & Ink Light](docs/images/chat.png)
+
+See the [screenshot gallery](docs/SCREENSHOTS.md) for more screens and all eleven themes in light and dark.
+All screenshots use synthetic demo content; no private chats or live gateway data are shown.
 
 ## Status
 
@@ -46,7 +49,25 @@ Simple too, with a button to turn it off: YOLO turned on in a chat from this app
 terminal, or approvals turned off for the profile. (YOLO turned on from another client, or before Hikyaku was restarted,
 is not read back from the gateway yet.)
 
-![Simple view](docs/images/simple-view.png)
+| Simple: everyday chatting | Advanced: gateway tools |
+|---|---|
+| ![Simple view with a demo chat and a compact navigation sidebar](docs/images/simple-view.png) | ![Advanced view with the same demo chat and gateway navigation](docs/images/advanced-view.png) |
+
+Both screenshots show the same chat in Washi & Ink Light. [Open the full-size mode comparison](docs/SCREENSHOTS.md#simple-and-advanced).
+
+## A few of the themes
+
+Choose **Light**, **Dark**, or **System** in Settings → Appearance. All eleven themes are available in both views.
+
+| Great Wave · Light | Washi & Ink · Dark |
+|---|---|
+| ![Great Wave Light: blue and rust accents on off-white surfaces](docs/images/themes/great-wave-light.png) | ![Washi and Ink Dark: warm coral and blue accents on black surfaces](docs/images/themes/washi-ink-dark.png) |
+
+| Shibuya Night · Dark | Akihabara · Light |
+|---|---|
+| ![Shibuya Night Dark: magenta and cyan accents](docs/images/themes/shibuya-night-dark.png) | ![Akihabara Light: green and violet accents](docs/images/themes/akihabara-light.png) |
+
+[Browse all 22 theme variants and more app screens →](docs/SCREENSHOTS.md)
 
 ## Requirements
 
@@ -132,8 +153,6 @@ dotnet test tests/Hikyaku.App.Tests      # view models and WPF behaviour against
 ./scripts/ui-acceptance.ps1              # drives the real window in demo mode and saves screenshots
 ./scripts/check-secrets.ps1              # heuristic scan for secrets and personal data in tracked files
 ```
-
-![Capabilities in Advanced view](docs/images/capabilities-advanced.png)
 
 ## Reporting problems
 

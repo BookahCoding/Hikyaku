@@ -5,6 +5,8 @@ are `vMAJOR.MINOR.PATCH`.
 
 ## Unreleased
 
+- Refreshed the README screenshots and added a gallery of Simple and Advanced views, app screens, and all eleven themes in light and dark, using synthetic demo content.
+
 ## 0.7.7 — Organized Inbox and clearer navigation
 
 - Inbox adds counted All, Unread, Failed and Script filters, available-result search, custom folders (including empty folders), and visible move actions. Local filtering preserves opened results; overlapping folder changes are serialized.
